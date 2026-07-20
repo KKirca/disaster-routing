@@ -1,0 +1,9 @@
+name: disaster
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - osmnx
+  - networkx
+  - matplotlib
+prefix: /home/oral-ubuntu/miniforge3/envs/disaster

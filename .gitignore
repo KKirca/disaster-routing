@@ -1,0 +1,75 @@
+# =====================================================================
+#  disaster-routing — .gitignore
+# =====================================================================
+
+# ---- OSMnx tile cache (hash isimli dosyalar) ----
+cache/
+
+# ---- Buyuk raster / indirilebilir veri ----
+*.tif
+*.tiff
+*.img
+*.jp2
+*.vrt
+*.hdf
+*.nc
+*.gpkg
+# surface_rupture geojson 50MB+ ise asagidaki satiri ac:
+# data/surface_rupture_lines*
+
+# ---- Model agirliklari (Faz 3+) ----
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.h5
+*.hdf5
+*.safetensors
+*.pkl
+checkpoints/
+weights/
+runs/
+
+# ---- Buyuk NumPy dizileri ----
+*.npy
+*.npz
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ---- Conda / sanal ortam ----
+.venv/
+venv/
+env/
+.conda/
+*.conda
+
+# ---- Label Studio ----
+.label-studio/
+label_studio_data/
+
+# ---- ROS2 ----
+install/
+log/
+
+# ---- Loglar / gecici ----
+*.log
+logs/
+tmp/
+
+# ---- Editor / OS / sirlar ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.env
+*.env
+secrets.*
