@@ -153,6 +153,20 @@ gösterilebilir bir sistem olur. Faz 0'da bile demo vardı.
 
 ---
 
+## K-13 · Türkiye etiketlemesinden önce xBD ile kalibrasyon
+
+**Karar:** İki anotatör de önce doğru cevabı bilinen ~100 xBD örneğini etiketler.
+Uzman etiketiyle uyum ve anotatörler arası kappa ölçülür.
+
+**Gerekçe:** Türkiye verisinde ground truth yok — orada ürettiğimiz etiketler
+ground truth olacak. Kalibre olmadan üretilirse hata payı ölçülemez, raporlanamaz.
+
+**Reddedildi:** Etiketleri LLM'e doğrulatmak. Sebep: (a) xBD'nin uzman etiketleri
+zaten elimizde ve daha güvenilir, (b) LLM kararları oturumlar arası tutarsız,
+(c) "iki bağımsız etiketleyici, kappa 0.78" savunulabilir bir yöntem cümlesi.
+
+---
+
 ## Açık konular (henüz karara bağlanmadı)
 
 - Likefaksiyon eşiği `THRESHOLD = 0.05` fazla geniş — grafın yarısını

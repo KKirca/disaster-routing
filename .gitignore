@@ -12,3 +12,19 @@ wget-log*
 *.tgz
 *.zip
 .DS_Store
+
+# === Faz 3 — model verisi (GB'larca, yeniden uretilebilir) ===
+data/patches/
+
+# === Faz 2c — etiketleme ===
+data/labeling/calib/          # 200 PNG, script yeniden uretir (ayni SEED)
+data/labeling/ground_truth.csv  # GIZLI — anotatorler gormemeli
+data/labeling/annotations_*.json
+
+# === Faz 3 — model verisi ===
+data/patches/
+
+# === Faz 2c — etiketleme ===
+data/labeling/calib/
+data/labeling/ground_truth.csv
+data/labeling/annotations_*.json

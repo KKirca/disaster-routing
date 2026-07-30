@@ -1,48 +1,93 @@
-# Afet Lojistik Rota Planlama Sistemi
+# disaster-routing
 
-Deprem hasarina gore acil durum kamyonlarini **kalkistan once** guvenli rotaya yonlendiren, AI destekli bir on-rota planlama sistemi.
+Deprem sonrası acil durum araçları için **uydu görüntüsünden yol geçilebilirliği**
+çıkarımı yapan rota planlama sistemi.
 
-> **Motivasyon:** 2023 Turkiye depreminde acil guc ekipmani tasiyan bir kamyon, gecilmez yollar yuzunden bir gunden fazla gecikti. Bu proje, uydu goruntusunden cikarilan hasar bilgisini yol gecilebilirligine cevirerek bu tur gecikmeleri kalkis oncesinde onlemeyi hedefler.
+Temel fikir: bina hasarı ve zemin riski sinyallerini yol segmenti maliyetlerine
+çevirip A* ile güvenli rota üretmek. Sistemin çekirdek özgünlüğü **köprü katmanı** —
+bina hasarını yol geçilebilirliğine dönüştüren ara katman.
 
-## Mimari (ozet)
+> **Detaylı bağlam `docs/` altında:**
+> [ProjeContext.md](docs/ProjeContext.md) (mimari, ortam, veri kaynakları) ·
+> [Kararlar.md](docs/Kararlar.md) (tasarım kararları ve gerekçeleri) ·
+> [ChangeLog.md](docs/ChangeLog.md) (ilerleme kaydı ve bulgular)
 
-1. **Yol grafi:** OSMnx ile vektor yol grafi (dugum/kenar).
-2. **Hasar tespiti (Layer 1):** Siamese CNN (xBD) + Prithvi-tipi backbone; SAM etiketleme yardimcisi; baseline CVA/NDBI.
-3. **Kopru katmani (Layer 2 — CEKIRDEK YENILIK):** Bina hasarini yol gecilebilirligine cevirir. Taraf-ici max + karsi-taraf toplami ile enkaz katkisi, kamyon genisligine (~3.5 m) gore uc kademeli maliyet (passable/difficult/closed), segment basina darbogaz kurali, guvenlik-asimetrik kalibrasyon.
-4. **Rota secimi:** Cok kriterli kenar agirliklariyla agirlikli A*.
-5. **Yol yuzeyi butunlugu:** Kademe 1 (USGS fay ruptquru, likefaksiyon) + Kademe 2 (ozel segmentasyon).
+## Mimari
 
-## Yol Haritasi / Ilerleme
+1. **Hasar tespiti** — Siamese CNN (xBD) + foundation backbone
+2. **Köprü katmanı** *(çekirdek katkı)* — bina hasarı → yol geçilebilirlik maliyeti
+3. **Rota** — OSMnx graf + ağırlıklı A*
 
-- [x] **Faz 0 — Yuruyen iskelet:** OSMnx yol grafi, great-circle sezgili A*, traversability arayuzu, dummy blok kenarla yeniden rota.
-- [x] **Faz 1 — Kademe 1 hazard katmanlari:** Reitman 2023 fay ruptquru (Turkoglu, 100 m tampon, 28 kenar closed), Zhu 2017 likefaksiyon rasteri.
-- [x] **Faz 2 — Veri ve ground truth altyapisi**
-- [ ] **Faz 3 — Hasar tespiti ML (Siamese CNN / Prithvi)**
-- [ ] **Faz 4 — Kopru katmani (cekirdek yenilik)**
-- [ ] **Faz 5 — Yol yuzeyi butunlugu (Kademe 2)**
-- [ ] **Faz 6 — Degerlendirme ve uctan uca demo**
+**Temel ilke:** rota çekirdeği (`edge_cost`, heuristik, A*) hiç değişmez;
+sadece `traversability` etiketinin kaynağı değişir.
+
+## Faz durumu
+
+- [x] **Faz 0** — İskelet: graf, A*, `traversability` arayüzü, dummy engel
+- [x] **Faz 1** — Kademe 1: USGS fay rüptürü (`closed`) + likefaksiyon (`difficult`)
+- [x] **Faz 2** — Veri altyapısı: xBD, spatial CV (%0 sızıntı), EMSR648, dört katman doğrulaması
+  - [ ] Maxar Open Data görüntü çekimi
+  - [ ] Faz 2c — Label Studio etiketleme *(devam ediyor)*
+- [ ] **Faz 3** — Hasar tespiti modeli
+  - [x] CVA baseline — **recall 0.72 @ precision 0.20**
+  - [ ] Siamese CNN
+  - [ ] Foundation backbone
+- [ ] **Faz 4** — Köprü katmanı
+- [ ] **Faz 5** — Kademe 2: yol yüzeyi segmentasyonu
+- [ ] **Faz 6** — Kalibrasyon ve uçtan uca değerlendirme
 
 ## Kurulum
 
-\`\`\`bash
+```bash
 conda env create -f environment.yml
 conda activate disaster
-\`\`\`
+```
 
-Yigin: Python 3.11, OSMnx, NetworkX, GeoPandas, Rasterio, Matplotlib.
+**ROS2 kuruluysa:** `PYTHONPATH` sızıntısını otomatik temizle —
 
-## Veri (buyuk dosyalar repoda yok)
+```bash
+mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+echo 'unset PYTHONPATH' > $CONDA_PREFIX/etc/conda/activate.d/unset_pythonpath.sh
+```
 
-data/ altindaki graphml dosyalari (yol graflari) repoda tutulur; buyuk raster/goruntu dosyalari degil. Indir ve data/ icine koy:
+Model eğitimi için (GPU gerekir):
 
-- **Fay ruptquru:** Reitman 2023 yuzey ruptquru (ScienceBase, GeoJSON).
-- **Likefaksiyon:** USGS Ground Failure — Zhu 2017 GeoTIFF.
-- **Bina hasari:** Maxar Open Data, Copernicus EMS (EMSR648), xBD.
-- **USGS olaylari:** M7.8 Pazarcik (us6000jllz), M7.5 Elbistan (us6000jlqa).
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+```
 
-## Calistirma
+## Veri
 
-\`\`\`bash
-conda activate disaster
-python scripts/phase0_routing.py
-\`\`\`
+Büyük veri repoda **yok**. İndirme adresleri ve klasör yapısı:
+[docs/ProjeContext.md → Veri kaynakları](docs/ProjeContext.md)
+
+Kısaca: xBD → `data/xbd/` (~7.8 GB, gitignore'da) · USGS rüptür + likefaksiyon →
+`data/` (repoda) · Copernicus EMSR648 → `data/emsr648/` (repoda).
+
+## Çalıştırma
+
+Tüm script'ler **proje kökünden** çalıştırılır:
+
+```bash
+python scripts/<ad>.py
+```
+
+| Script | Ne yapar |
+|---|---|
+| `phase0_routing.py` | Graf + A* + `traversability` arayüzü + dummy engel |
+| `phase1_rupture_real.py` | Fay rüptürünü buffer'layıp `closed` uygular |
+| `phase1_liquefaction1.py` | Likefaksiyon rasterını eşikleyip `difficult` uygular |
+| `turkoglu_four_layers.py` | Dört katmanı tek haritada birleştirir |
+| `spatial_cv.py` | Mekânsal blok bazlı fold bölünmesi + sızıntı ölçümü |
+| `phase3_cva_baseline.py` | CVA baseline + recall-öncelikli değerlendirme |
+| `phase3_make_patches.py` | Model için bina merkezli pre/post yamaları |
+| `phase2c_calibration_set.py` | Label Studio kalibrasyon seti üretir |
+| `phase2c_compare.py` | Anotatör etiketlerini xBD ile karşılaştırır |
+| `inspect_*.py` | İlgili veri kaynağını tanıma/görselleştirme |
+
+## Ekip
+
+İki kişi, ayrı Claude Project'leri, ortak knowledge = `docs/` altındaki üç dosya.
+Faz sonlarında güncellenir ve Project'e yeniden yüklenir.
+
+**Güncel iş bölümü:** etiketleme izi (Faz 2c) ve model izi (Faz 3) paralel yürüyor.

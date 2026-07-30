@@ -6,19 +6,37 @@
 
 ---
 
-## [Faz 3 başladı] — 2026-07-30
+## [Faz 3 baseline tamamlandı · Faz 2c başladı] — 2026-07-30
 
-### Yapılanlar
-- `phase3_cva_baseline.py` yazıldı: CVA (Change Vector Analysis) baseline
-  - pre/post fark vektörü büyüklüğü → bina poligonu içinde ortalama → eşikle sınıflama
-  - recall/precision/F1 eşik taraması, güvenlik asimetrisi vurgulu (K-08)
-- **Durum:** henüz çalıştırılmadı, sonuç bekleniyor
+### Faz 3 — CVA baseline (tamamlandı)
+- 40 Palu karosu, 7898 bina (%14.2 hasarlı)
+- **Sonuç: recall 0.72 @ precision 0.20** — taban oranın (0.142) sadece 1.44 katı
+- Zayıflık sebebi görsel olarak doğrulandı: CVA ısı haritasında en parlak yerler
+  yıkım değil, bina/yol **kenarları** → paralaks ve kayıt hatası
+- **CNN'in geçmesi gereken referans: recall 0.72 @ precision 0.20**
+
+### Faz 3 — hazırlık
+- GPU teyit: RTX 4060 Laptop, 8 GB VRAM, CUDA 13.0 sürücü
+- `phase3_make_patches.py`: bina merkezli 128×128 pre/post yamaları,
+  3:1 dengeleme, spatial_cv fold'larıyla
+- PyTorch `disaster` ortamında yok → pip + cu128 ile kurulacak
+
+### Faz 2c — etiketleme (başladı)
+- `phase2c_calibration_set.py`: xBD'den sınıf başına 25 örnek, karıştırılmış
+- `phase2c_compare.py`: doğruluk, Cohen's kappa, karışıklık matrisi,
+  tartışılacak örnek listeleri
+- Yeni karar: **K-13** (kalibrasyon)
+
+### İş bölümü
+Arkadaşta GPU yok → **etiketleme izi (Faz 2c) onda**, **model izi (Faz 3) Yusuf'ta**.
+İki iz paralel yürüyor, birbirini bloklamıyor.
 
 ### Sonraki adım
-- Baseline sonucunu al, referans sayıyı kaydet
-- GPU durumunu teyit et (`nvidia-smi`)
-- Siamese CNN eğitimine geç
+- Yusuf: PyTorch kur → yamaları üret → Siamese CNN
+- Arkadaş: kalibrasyon setini etiketle
+- İkisi bitince `phase2c_compare.py`, anlaşmazlıkları tartış
 
+---
 ---
 
 ## [Faz 2 tamamlandı] — 2026-07-30
