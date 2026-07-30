@@ -35,14 +35,24 @@ COLORS = {
 }
 
 # data/ altinda bir post_disaster etiketi bul (recursive).
-labels = glob.glob("data/**/labels/*_post_disaster.json", recursive=True)
+labels = glob.glob("data/**/labels/*palu*_post_disaster.json", recursive=True)
 if not labels:
-    raise SystemExit(
-        "post_disaster .json bulunamadi. xBD'yi indirip data/xbd/ altina "
-        "cikardin mi? (yapi: .../labels/*_post_disaster.json)"
-    )
+    raise SystemExit("earthquake post_disaster .json bulunamadi.")
 
-post_json = labels[0]
+# Tum deprem karolarini tara, en cok AGIR HASARLI bina icereni sec.
+def damage_score(p):
+    with open(p) as f:
+        feats = json.load(f)["features"]["xy"]
+    return sum(1 for ft in feats
+               if ft["properties"].get("subtype") in ("major-damage", "destroyed"))
+
+print(f"[tara] {len(labels)} deprem karosu taraniyor...")
+scored = sorted(((damage_score(p), p) for p in labels), reverse=True)
+print("[tara] en hasarli 5 karo:")
+for s, p in scored[:5]:
+    print(f"        {s:4d} agir/yikik bina — {p.split('/')[-1]}")
+
+post_json = scored[0][1]
 print(f"[ornek] secilen etiket: {post_json}")
 
 # Etiket yolundan goruntu yollarini turet.

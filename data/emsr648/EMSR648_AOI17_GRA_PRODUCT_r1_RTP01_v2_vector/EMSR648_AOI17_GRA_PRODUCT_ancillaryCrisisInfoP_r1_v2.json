@@ -1,0 +1,7 @@
+{
+"type": "FeatureCollection",
+"name": "EMSR648_AOI17_GRA_PRODUCT_ancillaryCrisisInfoP_r1_v2",
+"features": [
+{ "type": "Feature", "properties": { "obj_type": "Physical Barrier", "element_co": 1, "obj_desc": "Blocked road \/ interruption", "det_method": "Photo-interpretation", "notation": "Not Applicable", "or_src_id": 2, "dmg_src_id": 2, "cd_value": "Not Applicable" }, "geometry": { "type": "Point", "coordinates": [ 36.850803424000048, 37.389407223000035 ] } }
+]
+}
