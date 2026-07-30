@@ -16,7 +16,7 @@ Deprem hasarina gore acil durum kamyonlarini **kalkistan once** guvenli rotaya y
 
 - [x] **Faz 0 — Yuruyen iskelet:** OSMnx yol grafi, great-circle sezgili A*, traversability arayuzu, dummy blok kenarla yeniden rota.
 - [x] **Faz 1 — Kademe 1 hazard katmanlari:** Reitman 2023 fay ruptquru (Turkoglu, 100 m tampon, 28 kenar closed), Zhu 2017 likefaksiyon rasteri.
-- [ ] **Faz 2 — Veri ve ground truth altyapisi**
+- [x] **Faz 2 — Veri ve ground truth altyapisi**
 - [ ] **Faz 3 — Hasar tespiti ML (Siamese CNN / Prithvi)**
 - [ ] **Faz 4 — Kopru katmani (cekirdek yenilik)**
 - [ ] **Faz 5 — Yol yuzeyi butunlugu (Kademe 2)**
