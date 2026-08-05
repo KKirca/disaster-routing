@@ -1,0 +1,20 @@
+[oku] kuzey: 100 etiket
+[oku] ground truth: 100 gorev
+
+============================================================
+
+### kuzey — xBD ile karsilastirma
+  degerlendirilen  : 90 / 100
+  'emin degilim'   : 10 (10%)
+  4-sinif dogruluk : 0.556
+  ikili (hasarli)  : recall 0.630 | precision 0.829
+
+Karisiklik matrisi — kuzey
+                   no-damage  minor-damage  major-damage     destroyed
+no-damage                 17             4             2             0
+minor-damage              10             7             4             0
+major-damage              12             5             3             2
+destroyed                  0             0             1            23
+  (satir = gercek / xBD, sutun = anotator)
+
+[not] Ikinci anotator dosyasi yok — kappa hesaplanmadi.

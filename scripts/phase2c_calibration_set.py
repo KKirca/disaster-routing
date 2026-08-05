@@ -39,9 +39,8 @@ N_PER_CLASS = 25         # her hasar sinifindan kac ornek (toplam ~100)
 PATCH = 160              # yama kenari — etiketleyene baglam versin diye biraz genis
 SEED = 7
 CLASSES = ["no-damage", "minor-damage", "major-damage", "destroyed"]
-
-# Label Studio yerel dosya sunumu icin belge koku (.bashrc'deki degerle ayni olmali)
-DOC_ROOT = os.path.expanduser("~")
+# Label Studio belge koku = proje koku. LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT bu yola esit olmali.
+DOC_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 OUT_DIR = "data/labeling"
 IMG_DIR = f"{OUT_DIR}/calib"

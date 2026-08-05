@@ -17,14 +17,9 @@ wget-log*
 data/patches/
 
 # === Faz 2c — etiketleme ===
-data/labeling/calib/          # 200 PNG, script yeniden uretir (ayni SEED)
-data/labeling/ground_truth.csv  # GIZLI — anotatorler gormemeli
-data/labeling/annotations_*.json
-
-# === Faz 3 — model verisi ===
-data/patches/
-
-# === Faz 2c — etiketleme ===
+# 200 PNG, script yeniden uretir (ayni SEED)
 data/labeling/calib/
+# GIZLI — anotatorler gormemeli
 data/labeling/ground_truth.csv
+# anotator bagimsizligi icin paylasilmaz
 data/labeling/annotations_*.json
