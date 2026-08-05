@@ -165,6 +165,23 @@ ground truth olacak. Kalibre olmadan üretilirse hata payı ölçülemez, raporl
 zaten elimizde ve daha güvenilir, (b) LLM kararları oturumlar arası tutarsız,
 (c) "iki bağımsız etiketleyici, kappa 0.78" savunulabilir bir yöntem cümlesi.
 
+## K-14 · Anotasyon dosyaları repoda tutulmaz
+**Karar:** `data/labeling/annotations_*.json`, `ground_truth.csv` ve `calib/`
+`.gitignore` ile engellenir. Anotasyon dosyaları, her iki tur da bittikten sonra
+doğrudan karşılıklı paylaşılır.
+**Gerekçe:** Kappa'nın ölçtüğü şey "iki anotatör aynı protokolü uygulayınca aynı
+sonuca varıyor mu" sorusudur. Biri diğerinin etiketlerini veya cevap anahtarını
+görürse bağımsızlık bozulur, kappa yapay olarak yükselir ve ölçüm anlamsızlaşır.
+Bağımsızlık **mekanizmayla** korunur, ricayla değil.
+**Uygulama notu:** `.gitignore` satır içi yorum desteklemez —
+`ground_truth.csv  # GIZLI` satırı desenin parçası sanılır ve kural hiçbir şeyi
+engellemez. Her kural `git check-ignore -v <dosya>` ile doğrulanır; çıktı boşsa
+dosya engellenmiyor demektir.
+**Reddedildi:** Dosyayı pushlayıp "açma" notu düşmek. Sebep: tek bir dikkatsizlik
+100 görevlik turu geçersiz kılar; maliyeti geri alınamaz.
+
+---
+
 ---
 
 ## Açık konular (henüz karara bağlanmadı)

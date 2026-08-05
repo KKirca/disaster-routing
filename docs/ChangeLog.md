@@ -6,6 +6,58 @@
 
 ---
 
+## [Faz 2c — Kuzey anotasyon turu tamamlandı] — 2026-08-05
+### Yapılanlar
+- Kuzey 100 kalibrasyon görevini etiketledi (`annotations_kuzey.json`, 10 adet `emin-degilim`)
+- `PHASE2C_README.md`: Meyusun için kurulum, protokol ve bulgular dokümanı
+- `reports/phase2c_kuzey.txt`: karşılaştırma çıktısı repoya alındı
+### İki sessiz hata bulundu ve düzeltildi
+- **Label Studio 404 — kök neden bulundu.** `phase2c_calibration_set.py` içinde
+  `DOC_ROOT = expanduser("~")` idi; Label Studio ise
+  `LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=<proje kökü>` ile başlatılıyordu.
+  `relpath` doğru çalışıyordu ama yanlış referansa göre → URL'de `disaster-routing`
+  iki kez → var olmayan yol. Kod hatası değil, iki bileşen arası **sözleşme
+  uyuşmazlığı**. Düzeltme: `DOC_ROOT` script konumundan türetiliyor
+  (`dirname(dirname(abspath(__file__)))`), kullanıcı adından bağımsız.
+  Ev dizinini kök yapmak da çözerdi ama Label Studio'ya tüm `$HOME`'u HTTP'den
+  sunma yetkisi verirdi — reddedildi.
+- **`.gitignore` satır içi yorum hatası.** `data/labeling/ground_truth.csv  # GIZLI`
+  satırı, git tarafından yorum + desen olarak değil **tek bir desen** olarak okunuyordu.
+  Yani cevap anahtarı ve 200 PNG **engellendiği sanılırken engellenmiyordu**.
+  `#` yalnızca satır başındaysa yorumdur. Yorumlar kendi satırlarına taşındı,
+  `git check-ignore -v` ile üç dosya için doğrulandı.
+### Sonuç (Kuzey turu, xBD referansına karşı)
+90/100 değerlendirildi · 4-sınıf doğruluk **0.556** · ikili (hasarlı)
+**recall 0.630 | precision 0.829**
+
+Karışıklık matrisinin tek önemli bulgusu: `major-damage` satırı 22 örnekte
+yalnızca **3** doğru, **12'si `no-damage`** olarak işaretlendi. `minor-damage`
+satırında da 21 örneğin 10'u `no-damage`. Hatalar rastgele değil, **tek yönlü** —
+hasar sistematik olarak olduğundan hafif okunuyor. `destroyed` 23/24 doğru,
+çünkü tek **ikili** kritere sahip sınıf o.
+
+Teşhis: bu bir dikkat sorunu değil, **protokol sorunu**. `config.xml` hint'lerinde
+"büyük ölçüde", "kısmen" gibi ölçülemez niteleyiciler var; `no-damage` ile
+`minor/major` arasında zorunlu ayırt edici yok, dolayısıyla belirsizlikte
+`no-damage` varsayılan davranışa dönüşüyor. Ayrıca `Choices toName="post"` —
+karar bir **fark** kararı olmasına rağmen protokolde "önce/sonra karşılaştır"
+talimatı hiç yok.
+
+Projeye etkisi: `major-damage` binayı `no-damage` saymak, molozunu yola
+dökebilecek binayı yok saymaktır — planlayıcı kapalı yolu açık kabul eder.
+Faz 1'deki `edge_cost` hatasının **veri katmanındaki eşdeğeri**.
+### Açık
+- Meyusun'un bağımsız turu → **Cohen's kappa (hedef ≥ 0.60)**. Kappa hesaplanmadı;
+  bu script'teki kappa anotatörler arası uyumdur, anotatör–xBD uyumu değil.
+- Kappa yüksek çıksa bile yeterli değil: ikimiz de aynı yöne kayıyorsak kappa
+  ortak körlüğü gizler. İki karışıklık matrisi birlikte okunacak.
+- xBD `major-damage` / Kuzey `no-damage` olan 12 görev görsel olarak incelenecek;
+  çıkacak görsel kanıt tipleri protokol revizyonunun girdisi olacak.
+### Karar adayı
+`annotations_*.json` repoda tutulmaz — anotatör bağımsızlığı mekanizmayla
+korunur, ricayla değil. `Kararlar.md`'ye K numarası ile işlenecek.
+
+---
 ## [Faz 3 baseline tamamlandı · Faz 2c başladı] — 2026-07-30
 
 ### Faz 3 — CVA baseline (tamamlandı)

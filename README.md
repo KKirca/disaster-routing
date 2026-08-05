@@ -27,7 +27,7 @@ sadece `traversability` etiketinin kaynağı değişir.
 - [x] **Faz 1** — Kademe 1: USGS fay rüptürü (`closed`) + likefaksiyon (`difficult`)
 - [x] **Faz 2** — Veri altyapısı: xBD, spatial CV (%0 sızıntı), EMSR648, dört katman doğrulaması
   - [ ] Maxar Open Data görüntü çekimi
-  - [ ] Faz 2c — Label Studio etiketleme *(devam ediyor)*
+  - [ ] Faz 2c — Label Studio etiketleme *(1/2 anotatör tamam; kappa ölçümü Meyusun'un turunu bekliyor)*
 - [ ] **Faz 3** — Hasar tespiti modeli
   - [x] CVA baseline — **recall 0.72 @ precision 0.20**
   - [ ] Siamese CNN
