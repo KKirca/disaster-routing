@@ -46,6 +46,59 @@ talimatı hiç yok.
 Projeye etkisi: `major-damage` binayı `no-damage` saymak, molozunu yola
 dökebilecek binayı yok saymaktır — planlayıcı kapalı yolu açık kabul eder.
 Faz 1'deki `edge_cost` hatasının **veri katmanındaki eşdeğeri**.
+### Hata analizi — 12 kaçırılan `major-damage` örneği
+İncelenen: xBD `major-damage` / Kuzey `no-damage` olan 12 görev
+(task_0018, 0020, 0035, 0038, 0041, 0048, 0058, 0063, 0075, 0084, 0086, 0087).
+3 görevin görselleri tek tek incelendi, ardından afet dağılımı veriden çıkarıldı.
+
+**Görsel bulgular (3 örnek):**
+- Hasar binanın **geometrisinde** değil, **çevresinde** görünüyor: zemin dokusunun
+  değişmesi, öncede net olan yolun sonrada kaybolması.
+- Çatı **geometrisi korunurken renk/parlaklık değişiyor** (koyu gri → parlak beyaz):
+  çatı üzerinde birikinti işareti.
+- Her üç örnekte de bina formu bozulmamış. "Çatı bütünlüğü" kriteri bu vakaları
+  yakalayamıyor.
+
+**Afet dağılımı — asıl bulgu:**
+
+| Afet | `major-damage` örnek | Kaçırılan | Oran |
+|---|---:|---:|---:|
+| hurricane-florence | 13 | 9 | %69 |
+| hurricane-michael | 8 | 2 | %25 |
+| hurricane-matthew | 3 | 0 | %0 |
+| mexico-earthquake | 1 | 1 | (n=1) |
+
+Hatalar taban orana yayılmış değil, **hurricane-florence'ta yoğunlaşmış** (setin %52'si,
+hataların %75'i). Florence bir **sel** afetidir: bina ve çatı sağlam, hasar binanın
+içinde ve altında. Uydudan görünen tek şey su örtüsü. Görsel incelemede "moloz" sanılan
+zemin kararması aslında sudur.
+
+**Kalibrasyon setinin sınırlılığı:** `major-damage` sınıfının 25 örneğinden **24'ü
+kasırga, 1'i deprem**. Yani doğruluk 0.556 rakamı Kahramanmaraş performansını tahmin
+etmiyor; kasırga/sel hasarını tanıma performansını ölçüyor. xBD'de deprem verisi zaten
+çok az olduğu için set yeniden kurulmuyor — bu, eldeki veriyle kurulabilecek en iyi
+settir. Kappa kapısı geçerliliğini korur: kappa "ikimiz aynı protokolü aynı şekilde
+uyguluyor muyuz" sorusunu ölçer, bu afet tipinden bağımsızdır.
+**Tez metnine sınırlılık olarak yazılacak.**
+
+**Protokol revizyonu için türetilen kurallar (Meyusun'un turundan SONRA uygulanacak):**
+1. **Kanıt kapsamı genişletilir.** Hedef yine ortadaki binadır, ancak kanıt binanın
+   kendisi **ve yakın çevresidir**: moloz saçılması, zemin dokusu/renk değişimi,
+   çatı üzerinde birikinti, kenar hattının bozulması. "Ortadaki bina" bir *hedef seçme*
+   kuralıdır (iki anotatörün aynı nesneyi değerlendirmesi için), *kanıt kısıtı* değil.
+2. **Önce/sonra karşılaştırması zorunlu kılınır.** Mevcut protokolde bu talimat hiç
+   yoktu; `<Choices toName="post">` yalnızca sonra görüntüsüne bağlıydı. Oysa karar bir
+   **fark** kararıdır.
+3. **Yukarıdan bakışta çatı, hasarın en geç görünen kısmıdır.** Üç duvarı çökmüş bina
+   tepeden bütün görünebilir. `destroyed`'in %96 doğru olmasının sebebi budur: orada
+   hasar çatıya kadar ulaşmıştır. `major-damage` tam olarak "hasar var ama çatıya
+   yansımamış" bölgesidir.
+
+**Ayrıca bulundu — yama kırpma kusuru:** Bazı görevlerde (ör. task_0021) kadrajın yarısı
+siyah dolgu. Merkezi bina karo sınırına yakınsa yama taşıyor. Bu, "geometrik olarak
+ortadaki bina" kuralını belirsizleştiriyor çünkü görüntünün geometrik merkezi kayıyor.
+`phase2c_calibration_set.py` kırpma mantığı gözden geçirilecek.
+
 ### Açık
 - Meyusun'un bağımsız turu → **Cohen's kappa (hedef ≥ 0.60)**. Kappa hesaplanmadı;
   bu script'teki kappa anotatörler arası uyumdur, anotatör–xBD uyumu değil.
