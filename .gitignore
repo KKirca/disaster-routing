@@ -23,3 +23,6 @@ data/labeling/calib/
 data/labeling/ground_truth.csv
 # anotator bagimsizligi icin paylasilmaz
 data/labeling/annotations_*.json
+
+# === Faz 4 — Mexico City graf (53-56 MB, script yeniden uretir) ===
+data/mexico_city_graph*.graphml
