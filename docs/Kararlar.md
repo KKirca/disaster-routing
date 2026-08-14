@@ -272,6 +272,87 @@ ve hata ayrıştırma kaybı.
 
 ---
 
+## K-19 · Faz 4 karar kuralı: hasar baskısı formülü
+**Karar:** Her (bina, yol kenarı) çifti için bir katkı hesaplanır, kenar başına
+doygunlaşan birleştirmeyle `damage_pressure` üretilir.
+
+    katki = sinif × mesafe × alan × genislik
+
+      sinif    : destroyed 1.00 | major-damage 0.60 | minor-damage 0.15 | no-damage 0.00
+      mesafe   : max(0, 1 - d/R)          d = bina POLIGONU ile kenar arası mesafe (m)
+      alan     : min(alan_m2 / 199, 3.0)  199 m² = bu setteki medyan bina
+      genislik : min(7.0 / W, 1.3)        W = tahmini sokak genişliği (m)
+
+    damage_pressure = 1 - Π(1 - katki_i)
+
+**Sokak genişliği tahmini (W):** OSM'de `width` alanı pratikte boştur (133.559
+kenarın 288'i, %0.2). `lanes` %24.3 dolu, `highway` %100 dolu. Bu nedenle taban
+değer yol sınıfından okunur, şerit bilgisi varsa yukarı düzeltilir:
+
+    W = highway_tablosu[tip]
+    if lanes: W = max(W, lanes * 3.2 + 1.5)
+
+    motorway/trunk 20 | primary 14 | secondary 11 | tertiary 9
+    residential 7 | living_street 5 | service/unclassified 4
+    (_link ekli tipler ana tipiyle aynı)
+
+**Alt kararların gerekçeleri:**
+
+*Mesafe — doğrusal azalma (eşikli veya ters kare değil):* Enkaz yayılması fiziksel
+olarak sınırlıdır, yani bir kesme mesafesi vardır — ters kare bunu vermez, her bina
+her kenarı bir miktar etkiler. Ama sınır keskin de değildir — eşikli fonksiyon
+29.9 m'de tam etki, 30.1 m'de sıfır etki verir. Nitekim 30 m eşiğiyle yapılan ilk
+denemede bir bina 30.5 m'de dışarıda, başkası 26.4 m'de içeride kaldı; aradaki 4 m
+farkın fiziksel bir karşılığı yoktu. Doğrusal azalma ikisinin ortasıdır ve `R`
+parametresi tek başına anlamlıdır: "bu binanın molozu en fazla R metre gider".
+
+*Sınıf ağırlıkları — minor-damage dahil:* Projenin çıktısı ikili değil üçlüdür;
+`difficult` tam olarak "geçilebilir ama yavaş" durumunu temsil eder. Cephe kaplaması
+veya balkon döküntüsü bir sokağı `closed` yapmaz ama `difficult` yapabilir. 0.15
+ağırlığı tek başına eşiği aşmaz, ancak birden fazla `minor` bina birikirse etki üretir.
+`major-damage` için 0.60: tanım gereği binanın bir kısmı ayakta kalır, moloz hacmi
+kabaca yarıdır. Daha düşük bir değer (0.4) seçilmedi çünkü Faz 2c'de anotatörde
+`major-damage`/`no-damage` ayrımında **sistematik iyimserlik yanlılığı** ölçüldü
+(22 örnekte 3 doğru, 12'si no-damage); model de aynı yanlılığı taşıyabilir ve düşük
+ağırlık bu yanlılığı katlardı.
+
+*Bina büyüklüğü — yayılma mesafesine değil, enkaz miktarına bağlandı:* Fiziksel
+olarak `R` bina **yüksekliğine** bağlıdır (devrilen duvar kendi yüksekliği kadar
+mesafeye düşer), ancak xBD kat sayısı vermez. Taban alanından yükseklik tahmin etmek
+(alan → kat → yükseklik → yayılma) doğrulanamaz bir varsayım zinciri kurar ve her
+halka hata ekler; geniş tek katlı depo ile dar 8 katlı apartman aynı tabana sahip
+olabilir. Bunun yerine tek savunulabilir cümleye dayanıldı: **daha büyük bina daha
+fazla enkaz üretir.** `R` sabit tutulduğu için duyarlılık analizi de tek parametre
+üzerinden yapılabilir. Üst sınır 3.0, tek bir devasa binanın skoru tek başına
+doldurmasını engeller (bu sette taban alanı 26–1499 m², 57 kat fark).
+
+*Genişlik — doğrusal bölen, 1.3 üst sınırlı:* Tıkanma oranı kabaca
+`moloz_genişliği / sokak_genişliği`'dir, yani ilişki doğrusaldır; karekök yumuşatma
+fiziksel bir gerekçeye dayanmaz. Ancak sınırsız doğrusal `service` yollarını (4 m)
+1.75 ile cezalandırır ve `closed` etiketleri rota açısından önemsiz arka sokaklara
+yığılır. 1.3 üst sınırı bu abartıyı keser, geniş yollardaki azalma doğrusal kalır.
+
+*Birleştirme — doygunlaşan çarpım:* Maksimum almak birikimi yok sayar (üç orta
+hasarlı bina, tek ağır hasarlı binadan az sayılır — oysa üç ayrı moloz yığını sokağı
+daha kesin tıkar). Düz toplam ise 0–1 aralığını bozar ve doygunluk vermez.
+`1 - Π(1 - katki)` her iki sorunu da çözer ve olasılık yorumuyla savunulur: *her bina
+yolu bağımsız olarak tıkayabilir; baskı, en az birinin tıkama olasılığıdır.*
+Bağımsızlık varsayımı tam doğru değildir (bitişik binalar birlikte çöker), ancak bu
+**konservatif yönde** hatadır — gerçek risk hesaplanandan yüksek çıkar, düşük değil.
+K-16 ile uyumludur.
+
+**Doğrulanabilirlik sınırı (tezde belirtilecek):** Bu formülün "doğru" olduğunu
+gösterecek ground truth yoktur — deprem sonrası hangi yolun gerçekten kapandığını
+veren bir veri seti mevcut değildir. Dolayısıyla ölçüt doğruluk değil,
+**savunulabilirliktir**: her parametrenin fiziksel bir gerekçesi vardır ve yukarıda
+yazılıdır. Doğrulama, 20 ağır hasarlı binanın uydu görüntüsünden tek tek incelenip
+kuralın çıktısıyla karşılaştırılması yoluyla yapılacaktır (uzman muhakemesi referansı).
+
+**Açık parametre:** `R` (moloz yayılma mesafesi) henüz sabitlenmedi. Skor dağılımı
+görüldükten sonra eşiklerle (K-15) birlikte ayarlanacak.
+
+---
+
 ## Açık konular (henüz karara bağlanmadı)
 
 - Likefaksiyon eşiği `THRESHOLD = 0.05` fazla geniş — grafın yarısını
