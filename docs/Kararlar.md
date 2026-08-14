@@ -182,6 +182,77 @@ dosya engellenmiyor demektir.
 
 ---
 
+## K-15 · Faz 4 çıktısı: önce sürekli skor, sonra eşik
+**Karar:** Köprü katmanı her yol kenarı için `damage_pressure` (0.0–1.0) üretir ve
+graf kenar özniteliğine yazar. `traversability` etiketi bu skordan eşikle türetilir:
+`≥ CLOSED_THRESHOLD` → `closed`, `≥ DIFFICULT_THRESHOLD` → `difficult`, altı →
+`passable`. Ham skor her koşulda saklanır.
+**Gerekçe:** (a) Eşik sonradan ayarlanabilir — skorlar bir kez hesaplanır, farklı
+eşiklerle duyarlılık analizi yapılır. (b) "Bu kenar neden kapalı?" sorusuna sayısal
+cevap verilir; katman kara kutu olmaz. (c) `difficult` zaten sürekli bir büyüklüğün
+("ne kadar zor?") ayrıklaştırılmış halidir; onu doğrudan ikili kuralla üretmek bilgi
+kaybıdır. (d) Bu katmanın doğruluğunu kanıtlayacak ground truth yok — doğrulanamayan
+bir sistem en azından şeffaf olmalıdır.
+**Reddedildi:** Doğrudan etiket üretmek (ara skor tutmadan). Sebep: eşik değişiminde
+tüm hesap yeniden koşar, ablation yapılamaz, karar denetlenemez.
+**Not:** `DIFFICULT_THRESHOLD = 0.30`, `CLOSED_THRESHOLD = 0.70` şu an **yer
+tutucudur**. Skor formülü belirlendikten sonra gerçek dağılıma bakılarak ayarlanacak.
+
+---
+
+## K-16 · Katman birleştirme: konservatif (en kısıtlayıcı kazanır)
+**Karar:** Bir kenarın `traversability` değeri, kaynaklardan **herhangi biri** `closed`
+diyorsa `closed`'dır. Öncelik: `closed` > `difficult` > `passable`. Kaynaklar: fay
+rüptürü (Faz 1), likefaksiyon (Faz 1), bina enkazı (Faz 4).
+Faz 4, Faz 1'in yazdığı etiketi **gevşetemez** — yalnızca kısıtlayıcı yönde
+değiştirebilir. `damage_pressure` skoru her koşulda yazılır; kenar rüptürden kapalı
+olsa bile enkaz baskısı ayrıca kaydedilir.
+**Gerekçe:** Hata maliyeti asimetriktir. Geçilebilir yolu kapalı saymak rotayı uzatır;
+kapalı yolu geçilebilir saymak aracı enkaza yollar. Aracı ilgilendiren şey yolun hangi
+sebeple kapandığı değil, kapalı olmasıdır. Faz 1'de rüptür `closed`'ının likefaksiyon
+`difficult`'ını ezmesiyle (K-03/K-04) aynı ilke.
+**Reddedildi:** Kaynakları ağırlıklı ortalamayla birleştirmek. Sebep: iki bağımsız
+sebepten biri tek başına yeterliyken ortalama almak riski sulandırır.
+
+---
+
+## K-17 · Faz 4 geliştirme zemini: mexico-earthquake
+**Karar:** Köprü katmanı `mexico-earthquake` seti üzerinde geliştirilip kalibre edilir.
+Merkez 19.3154 N, −99.1867 W (Mexico City güney merkezi); 121 karo, 32.271 bina,
+~9 × 19 km. Yol grafı aynı bölgeden OSMnx ile çekilir.
+**Gerekçe:** Enkazın yolu tıkama davranışı afet tipine göre kökten değişir. Yangında
+(`socal-fire`, 823 karo — en büyük set) bina çöker ama yola moloz saçmaz. Sel ve
+kasırgada (`florence`, `harvey`, `matthew`) yol suyla kapanır, enkazla değil; su
+çekilince açılır. Tsunamide (`palu`) moloz akıntıyla kaynak binadan uzağa taşınır.
+Yalnızca depremde bina kendi üzerine/yana çöker ve moloz komşu sokağa dökülür —
+Kahramanmaraş'ta olan budur. **En büyük veri seti burada yanlış veri setidir.**
+Ayrıca Mexico City yoğun kentsel dokuya sahiptir (dar sokak, bitişik nizam), Antakya'ya
+morfolojik olarak yakındır; kırsal setlerde (`guatemala-volcano`, 18 karo) bina-yol
+ilişkisi kurulamaz.
+**Sınırlılık (tezde belirtilecek):** 121 karo görece azdır ve Mexico City yapı stoku
+Antakya'dan farklıdır (yönetmelik, kat dağılımı). Buradan kalibre edilen parametrelerin
+Kahramanmaraş'a aktarımı bir **transfer varsayımıdır**.
+
+---
+
+## K-18 · Faz 4 girdisi: model değil, ara CSV tablosu
+**Karar:** Köprü katmanının girdisi sabit şemalı bir CSV'dir:
+`uid,lon,lat,damage_class,confidence,source`
+Koordinatlar WGS84 (EPSG:4326). `no-damage` binalar dahil edilir. `confidence` xBD
+ground truth için `1.0`, model çıktısı için olasılıktır. `source` alanı `xbd_gt` veya
+`model_v1` değerini alır. Faz 4 ne `.npz` okur ne de modeli çağırır.
+**Gerekçe:** (a) **Tekrarlanabilirlik** — model yeniden eğitilince Faz 4 sonuçları
+sessizce değişmez; tezdeki rota görseli aylar sonra yeniden üretilebilir.
+(b) **Hata ayrıştırma** — rota yanlışsa hatanın modelde mi köprü katmanında mı olduğu
+ayırt edilebilir. (c) **Karşılaştırmalı değerlendirme** — aynı bölgede `xbd_gt` ve
+`model_v1` ile iki koşu yapılıp modelin hatasının rotaya ne kadar yansıdığı ölçülebilir
+("model %70 doğrulukta, rota kalitesi %92 korunuyor" tipi bir sonuç, tek başına
+sınıflandırma metriğinden değerlidir). (d) Yan fayda: Faz 4, Faz 3 tamamlanmadan
+geliştirilebilir.
+**Reddedildi:** `.npz` okumak — eğitim formatına kilitler, koordinat içermez, Maxar
+verisine geçişte yeniden yazım gerektirir. Modeli doğrudan çağırmak — tekrarlanabilirlik
+ve hata ayrıştırma kaybı.
+
 ---
 
 ## Açık konular (henüz karara bağlanmadı)
