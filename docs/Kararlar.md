@@ -217,9 +217,15 @@ sebepten biri tek başına yeterliyken ortalama almak riski sulandırır.
 ---
 
 ## K-17 · Faz 4 geliştirme zemini: mexico-earthquake
-**Karar:** Köprü katmanı `mexico-earthquake` seti üzerinde geliştirilip kalibre edilir.
+**Karar:** Köprü katmanı `mexico-earthquake` seti üzerinde geliştirilip doğrulanır.
 Merkez 19.3154 N, −99.1867 W (Mexico City güney merkezi); 121 karo, 32.271 bina,
 ~9 × 19 km. Yol grafı aynı bölgeden OSMnx ile çekilir.
+**Veri hacmi:** 32.271 binanın sınıf dağılımı: no-damage 32.066, minor-damage 110,
+un-classified 75, major-damage 18, destroyed 2. Yani **ağır hasarlı (yol tıkayabilecek)
+bina sayısı 20'dir.** Bu 20 bina beş mekânsal kümede toplanmıştır (3+3+2+3+5 bina;
+en sıkısı ~10 m yayılımlı, bitişik nizam) ve 4'ü yalıtıktır. Çoğu −99.14…−99.15
+boylam şeridinde, 2017 Puebla depreminin bilinen çökme koridorunda (Roma/Condesa/
+Del Valle) yer alır.
 **Gerekçe:** Enkazın yolu tıkama davranışı afet tipine göre kökten değişir. Yangında
 (`socal-fire`, 823 karo — en büyük set) bina çöker ama yola moloz saçmaz. Sel ve
 kasırgada (`florence`, `harvey`, `matthew`) yol suyla kapanır, enkazla değil; su
@@ -229,9 +235,20 @@ Kahramanmaraş'ta olan budur. **En büyük veri seti burada yanlış veri setidi
 Ayrıca Mexico City yoğun kentsel dokuya sahiptir (dar sokak, bitişik nizam), Antakya'ya
 morfolojik olarak yakındır; kırsal setlerde (`guatemala-volcano`, 18 karo) bina-yol
 ilişkisi kurulamaz.
-**Sınırlılık (tezde belirtilecek):** 121 karo görece azdır ve Mexico City yapı stoku
-Antakya'dan farklıdır (yönetmelik, kat dağılımı). Buradan kalibre edilen parametrelerin
-Kahramanmaraş'a aktarımı bir **transfer varsayımıdır**.
+**20 bina neden yeterli:** Faz 4 öğrenen bir model değil, **deterministik geometrik
+kuraldır**. Parametreleri (moloz yayılma mesafesi, kat sayısı katsayısı, sokak genişliği
+eşiği) veriden öğrenilmez; fiziksel akıldan ve literatürden gelir. Zaten öğrenilemez de:
+"hangi yol gerçekten kapandı" diye bir ground truth yoktur, yani optimize edilecek bir
+hedef değişken mevcut değildir. Veriye ihtiyaç parametre uydurmak için değil, **kuralın
+makul davrandığını gözlemek** içindir ("3 bitişik bina çöktü, kural bu sokağı closed
+diyor mu?"). Bunun için 20 bina yeterlidir; 20.000 bina aynı kontrolü tekrarlardı.
+Ayrıca 20 bina tek tek uydu görüntüsünden incelenebilir — kuralın çıktısıyla
+karşılaştırılacak bir **uzman muhakemesi referansı** oluşturulabilir. Bu ground truth
+değildir ama tezde savunulabilir bir doğrulama yöntemidir.
+**Sınırlılık (tezde belirtilecek):** Mexico City yapı stoku Antakya'dan farklıdır
+(yönetmelik, kat dağılımı) ve 2017 Puebla depreminde yıkım noktasaldı — mahalleler
+düzleşmedi. Kahramanmaraş'ta yıkım çok daha yaygındır. Buradan türetilen parametrelerin
+aktarımı bir **transfer varsayımıdır**.
 
 ---
 
