@@ -1,8 +1,12 @@
 """
 Faz 4 — Adim 1: xBD etiketlerinden kopru katmani girdi tablosunu uret.
 
-K-18 sozlesmesi:
-    uid,lon,lat,damage_class,confidence,source
+K-18 sozlesmesi (revize):
+    uid,lon,lat,footprint_wkt,area_m2,damage_class,confidence,source
+    footprint_wkt: bina poligonu (WGS84). Mesafe hesabi centroid'den DEGIL
+    poligondan yapilir — enkaz binanin merkezinden degil CEPHESINDEN dokulur.
+    50x50 m bir binanin merkezi yoldan 51 m uzakta olabilir ama cephesi 26 m'de.
+    area_m2: taban alani (EPSG:32614'te hesaplanir), enkaz hacmi vekili.
     Koordinat: WGS84 (EPSG:4326) — xBD'nin lng_lat blogu
     no-damage binalar DAHIL (yogunluk normalizasyonu icin)
     confidence: ground truth icin 1.0
@@ -26,6 +30,8 @@ import os
 from collections import Counter
 
 from shapely import wkt
+from shapely.ops import transform
+import pyproj
 
 DISASTER = "mexico-earthquake"          # K-17
 LABEL_GLOB = f"data/xbd/train/labels/{DISASTER}_*_post_disaster.json"
@@ -34,6 +40,11 @@ OUT_CSV = f"{OUT_DIR}/{DISASTER}_xbd_gt.csv"
 
 VALID = {"no-damage", "minor-damage", "major-damage", "destroyed"}
 HEAVY = {"major-damage", "destroyed"}   # yol tikayabilecek siniflar
+METRIC_CRS = "EPSG:32614"               # UTM 14N — alan hesabi icin
+
+# Alan WGS84'te hesaplanamaz (derece^2 anlamsizdir); metrik projeksiyon sart.
+_to_metric = pyproj.Transformer.from_crs(
+    "EPSG:4326", METRIC_CRS, always_xy=True).transform
 
 
 def main():
@@ -59,11 +70,15 @@ def main():
                 skipped[cls or "YOK"] += 1
                 continue
 
-            c = wkt.loads(ft["wkt"]).centroid
+            poly = wkt.loads(ft["wkt"])
+            c = poly.centroid
+            area = transform(_to_metric, poly).area
             rows.append({
                 "uid": props.get("uid", ""),
                 "lon": f"{c.x:.7f}",
                 "lat": f"{c.y:.7f}",
+                "footprint_wkt": poly.wkt,
+                "area_m2": f"{area:.1f}",
                 "damage_class": cls,
                 "confidence": "1.0",
                 "source": "xbd_gt",
@@ -73,8 +88,8 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(OUT_CSV, "w", newline="") as f:
         w = csv.DictWriter(
-            f, fieldnames=["uid", "lon", "lat", "damage_class",
-                           "confidence", "source", "tile"])
+            f, fieldnames=["uid", "lon", "lat", "footprint_wkt", "area_m2",
+                           "damage_class", "confidence", "source", "tile"])
         w.writeheader()
         w.writerows(rows)
 
@@ -90,6 +105,12 @@ def main():
     for k in ["no-damage", "minor-damage", "major-damage", "destroyed"]:
         print(f"{dist.get(k, 0):7d}  {k}")
     print(f"\n[agir hasarli (major+destroyed)] {heavy}")
+
+    ha = [float(r["area_m2"]) for r in rows if r["damage_class"] in HEAVY]
+    if ha:
+        ha.sort()
+        print(f"[agir hasarli taban alani] min {ha[0]:.0f}  "
+              f"medyan {ha[len(ha)//2]:.0f}  max {ha[-1]:.0f} m2")
 
     lons = [float(r["lon"]) for r in rows]
     lats = [float(r["lat"]) for r in rows]
