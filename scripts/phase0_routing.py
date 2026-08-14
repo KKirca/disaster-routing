@@ -89,20 +89,23 @@ def edge_cost(u, v, data):
     Traversability etiketini A* maliyetine cevirir.
       passable  -> normal uzunluk
       difficult -> uzunluk * ceza
-      closed    -> sonsuz (gecilemez)
+      closed    -> None (kenar graftan tamamen cikarilir)
     Coklu-kenar (MultiDiGraph) durumunda en dusuk maliyetli paraleli secer.
     """
-    best = math.inf
+    best = None
     for key, attrs in data.items():
         length = attrs.get("length", 1.0)
         state = attrs.get("traversability", "passable")
         if state == "closed":
-            cost = math.inf
+            continue  # bu paralel kenar yok sayilir
         elif state == "difficult":
             cost = length * DIFFICULT_PENALTY
         else:  # passable
             cost = length
-        best = min(best, cost)
+        best = cost if best is None else min(best, cost)
+    # Tum paraleller kapali -> None. A* kenari graftan tamamen disar.
+    # math.inf DONDURULMEZ: A* onu "cok pahali ama gecilebilir" sayar ve
+    # baska yol yoksa kapali yoldan rota uretir (sessiz hata).
     return best
 
 

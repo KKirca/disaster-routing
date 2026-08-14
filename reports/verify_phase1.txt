@@ -1,0 +1,25 @@
+
+[1] edge_cost sozlesmesi — tekil kenar
+  [GECTI] passable  -> uzunluk
+  [GECTI] difficult -> uzunluk * ceza
+  [GECTI] closed    -> None (inf DEGIL)
+  [GECTI] etiketsiz kenar passable sayilir
+
+[2] edge_cost — coklu paralel kenar
+  [GECTI] kapali + acik  -> acik olanin maliyeti
+  [GECTI] tum paraleller kapali -> None
+  [GECTI] iki acik paralel -> ucuz olan
+  [GECTI] difficult vs uzun passable -> ucuz olan secilir
+
+[3] A* entegrasyonu — asil regresyon testi
+  [GECTI] alternatif varken kapali yol SECILMEZ
+  [GECTI] tum yollar kapali -> NetworkXNoPath
+
+[4] difficult mekanizmasi — ceza esigi
+  [GECTI] ceza=5.0: 50m difficult (250) vs 2000m passable (2000)
+
+[5] math.inf sizintisi taramasi
+  [GECTI] edge_cost calisan kodunda math.inf yok
+
+============================================================
+SONUC: tum testler gecti. Faz 1 edge_cost sozlesmesi dogrulandi.
