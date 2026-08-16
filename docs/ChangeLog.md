@@ -6,6 +6,205 @@
 
 ---
 
+## [Faz 4 — köprü katmanı tamamlandı] — 2026-08-16
+
+Bina hasarını yol geçilebilirliğine çeviren katman. Projenin **özgün katkısı** budur:
+A\* ders kitabı algoritması, Siamese CNN literatürde mevcut yöntem, OSMnx ve xBD hazır
+araç. Yeni olan tek şey, hasar bilgisini rota maliyetine dönüştüren bu ara katmandır.
+
+### Yapılanlar
+
+- `scripts/phase4_build_damage_csv.py` — xBD etiketlerinden girdi tablosu
+- `scripts/phase4_match_buildings.py` — bina–yol mekânsal eşleştirme
+- `scripts/phase4_damage_pressure.py` — K-19 skor formülü
+- `scripts/phase4_apply_to_graph.py` — skoru graf kenar özniteliğine yazma
+- `scripts/phase4_route_compare.py` — traversability üretimi + eşik duyarlılık analizi
+- `scripts/phase4_visualize.py` — iki panelli rota karşılaştırma haritası
+- `data/damage/mexico-earthquake_xbd_gt.csv` — 32.196 bina
+- `reports/phase4_esik_duyarlilik.txt`, `outputs/phase4_{izolasyon,sapma}.png`
+
+Kararlar: **K-15** (sürekli skor + eşik), **K-16** (konservatif birleştirme),
+**K-17** (mexico-earthquake zemini), **K-18** (ara CSV girdisi), **K-19** (skor formülü).
+
+### Boru hattı
+
+    xBD etiketi → CSV → mekânsal eşleştirme → damage_pressure → traversability → A* → rota
+
+### Yöntem sırası ve gerekçesi
+
+Kod yazmadan önce **sözleşme** sabitlendi (girdi/çıktı tanımı), sonra zemin seçildi,
+sonra geometri kuruldu, en son karar kuralı yazıldı. Faz 1'de `traversability`
+sözleşmesinin baştan sabitlenmesi o fazı kurtarmıştı; aynı yaklaşım uygulandı.
+
+### Neden mexico-earthquake (K-17)
+
+Enkazın yolu tıkama davranışı afet tipine göre kökten değişir:
+
+| Afet | Karo | Enkaz davranışı |
+|---|---:|---|
+| socal-fire | 823 | Bina yanar/çöker ama **yola moloz saçmaz** |
+| hurricane-* | 900+ | Yol **suyla** kapanır, enkazla değil; su çekilince açılır |
+| palu-tsunami | 113 | Moloz akıntıyla kaynak binadan uzağa taşınır |
+| **mexico-earthquake** | **121** | **Bina kendi üzerine/yana çöker, moloz komşu sokağa dökülür** |
+
+**En büyük veri seti burada yanlış veri setidir.** `socal-fire` ile kalibre edilseydi
+sistem "hasarlı bina → yol kapanmaz" öğrenir ve Kahramanmaraş'ta yanlış çalışırdı.
+
+Ayrıca Mexico City yoğun kentsel dokuya sahiptir (dar sokak, bitişik nizam), Antakya'ya
+morfolojik olarak yakındır. Kırsal setlerde (`guatemala-volcano`, 18 karo) bina–yol
+ilişkisi kurulamaz.
+
+### 20 bina neden yeterli
+
+`major-damage` 18 + `destroyed` 2 = **20 ağır hasarlı bina** (32.271 binanın %0.06'sı).
+Beş mekânsal kümede toplanmışlar (3+3+2+3+5), en sıkısı ~10 m yayılımlı bitişik nizam;
+4'ü yalıtık. Çoğu −99.14…−99.15 boylam şeridinde — 2017 Puebla depreminin bilinen
+çökme koridoru (Roma/Condesa/Del Valle).
+
+Faz 4 **öğrenen bir model değil, deterministik geometrik kuraldır.** Parametreleri
+veriden öğrenilmez; fiziksel akıldan gelir. Zaten öğrenilemez de: "hangi yol gerçekten
+kapandı" diye bir ground truth yoktur, yani optimize edilecek hedef değişken mevcut
+değildir. Veriye ihtiyaç parametre uydurmak için değil, **kuralın makul davrandığını
+gözlemek** içindir. Bunun için 20 bina yeterlidir; 20.000 bina aynı kontrolü
+tekrarlardı.
+
+### Bulunan hatalar
+
+**1. Centroid ile mesafe ölçümü — sistematik hata (düzeltildi)**
+
+İlk sürümde bina bir **nokta** (centroid) olarak ele alınıyordu. Ama enkaz binanın
+merkezinden değil **cephesinden** dökülür. Poligona geçince:
+
+| bina | alan | centroid | poligon | fark |
+|---|---:|---:|---:|---:|
+| f3865521 | 858 m² | 26.4 m | **0.0 m** | 26 m |
+| 4db97035 | 1499 m² | 21.0 m | 3.1 m | 18 m |
+| 229ba083 (destroyed) | 804 m² | 33.4 m → **dışarıda** | 15.1 m → içeride | 18 m |
+
+Eşleşme **15/20 → 18/20** yükseldi. Centroid'de kalınsaydı iki `destroyed` binadan
+biri tamamen kaçırılacaktı. K-18 şemasına `footprint_wkt` ve `area_m2` eklendi.
+
+**2. Türkçe locale — GraphML bozulması**
+
+`LANG=tr_TR.UTF-8` altında OSMnx GraphML yazarken `LINESTRING` → `LiNESTRiNG` oluyor
+ve dosya geri okunamıyor (`GEOSException: Unknown type`). Sebep: Türkçede `i` harfinin
+büyüğü `İ`'dir; yerel ayara duyarlı büyük harf dönüşümü ASCII'ye düşerken noktaları
+kaybediyor. **Klasik "Türkçe i problemi".**
+
+Çözüm: OSMnx/GraphML işleyen tüm scriptler `LC_ALL=C` ile çalıştırılır. Faz 0/1
+cache'leri (`graph.graphml`, `graph_turkoglu.graphml`) tarandı — temiz. Ama aynı komut
+bugün Türkçe locale'de çalıştırılsa bozuk dosya üretirdi; bu bir zaman bombasıdır.
+
+**3. Skor kırpması — formül yapısal olarak hatalıydı (düzeltildi)**
+
+İlk formülde `alan` (≤3.0) ve `genislik` (≤1.3) çarpanları 1'i aşabiliyordu:
+`1.0 × 1.0 × 3.0 × 1.3 = 3.9` → `min(x, 1.0)` ile kırpılıyordu.
+
+İki sonucu vardı: (a) 10 kenar tam `1.000`'de yığılıyordu — o skorlar "kesin kapalı"
+değil "hesap taştı" demekti; (b) `R` ne olursa olsun `closed` sayısı 11'de sabit
+kalıyordu, yani **duyarlılık analizi imkânsızdı.**
+
+Kök neden kırpma değil, formülün yapısıydı. `katki` K-19'da bir **olasılık** olarak
+tanımlanmıştı ("bu bina bu yolu tıkar mı?"); olasılık 1'i aşamaz. Her faktör 0–1
+aralığında yeniden tanımlandı: `alan = min(alan_m2/400, 1.0)`,
+`darlik = min(7.0/W, 1.0)`. Kırpma gereksizleşti, `R` duyarlılığı geri geldi:
+
+| R | max skor | closed | difficult |
+|---:|---:|---:|---:|
+| 15 m | 0.600 | 0 | 11 |
+| 25 m | 0.759 | 2 | 11 |
+| 40 m | 0.849 | 8 | 8 |
+
+### R = 25 m gerekçesi
+
+Devrilen duvar kabaca kendi yüksekliği kadar mesafeye düşer. Bu bölgede tipik yapı
+stoku 3–6 kat = 10–20 m; moloz saçılmasıyla etkili mesafe 20–30 m aralığına oturur.
+25 m bu aralığın ortasıdır. 40 m ancak 12+ katlı bloklar için savunulabilir (medyan
+taban alanı 199 m², böyle bir doku yok). 15 m'de hiçbir kenar 0.70'i aşmıyor — iki
+`destroyed` bina bile yol kapatamıyor.
+
+### Eşik neden sabitlenmedi
+
+Hangi eşiğin doğru olduğunu gösterecek ground truth yoktur. Eşiği seçip sonucuna bakmak
+**döngüsel gerekçelendirme** olurdu ("hedefe ulaşabildiğim en yüksek eşiği seçeyim" =
+sistemin uyarı vermesini engellemek için eşik ayarlamak).
+
+Bunun yerine: varsayılan `0.50 / 0.20`, sonuçlar birden fazla eşikle raporlanır.
+Tezde "eşiği 0.5 seçtik" yerine "eşik 0.3'te 13 yol, 0.7'de 2 yol kapanıyor" denir.
+Jüri "neden bu sayı?" sorusunu soramaz — bir sayı seçilmedi, etkisi ölçüldü.
+
+Eşiğin **ne zaman değiştirilmesi gerektiği** `phase4_route_compare.py` başlığında
+belgelendi: (1) Kahramanmaraş'a geçerken, (2) model çıktısı kullanılırken —
+Faz 2c'de ölçülen sistematik iyimserlik yanlılığı skorları düşürebilir, (3) `R`
+değiştiğinde, (4) saha verisi gelirse (o zaman eşik tahmin değil **ölçüm** olur).
+
+### Doğrulama — iki senaryo
+
+Test noktaları hasar kümesinden geçecek şekilde seçildi. Bu hile değil: acil durum
+aracı zaten hasarlı bölgeye gidiyor. Rastgele nokta seçmek, sistemin işe yaradığı
+durumu test etmemek olurdu (234 etkilenen kenar, ağın %0.175'i).
+
+**IZOLASYON** (`6184109963 → 1860819095`) — `closed` mekanizmasını sınar.
+Hedef kavşağın **üç kolu da** hasarlı (0.638 / 0.697 / 0.677) ve bölge bir **çıkmaz
+sokak adası** (400 m içinde yalnızca 27 düğüm; ızgara planda 100+ beklenir). Eşik
+0.638'in altına inince ada tamamen izole oluyor → `NetworkXNoPath`.
+
+Bu bir hata değil, **doğru cevaptır**. Izgara planda bir sokak kapanırsa araç bir blok
+dolanır; çıkmaz sokak adasında tek bağlantı kapanırsa içerideki herkes erişilemez hale
+gelir. Antakya'da benzer topolojiler vardır.
+
+**Faz 1'deki `edge_cost` düzeltmesi olmasaydı bu senaryo sessizce yanlış cevap
+verirdi:** `math.inf` ile A\* kapalı sokaktan geçen bir rota üretir ve "işte yolun"
+derdi. Trafo kamyonu enkaza giderdi.
+
+**SAPMA** (`8339935731 → 292423735`) — `difficult` mekanizmasını sınar.
+`Calle Los Mendoza` (0.759) üzerinden geçen rota, ancak bölge bağlantılı (1500 m içinde
+239 düğüm). Sonuç: **1269 m → 1313 m (+44 m sapma).**
+
+`t_closed = 0.95` satırında da sapma var — o eşikte hiçbir kenar `closed` olamaz
+(max skor 0.759). Yani sapmayı üreten **`difficult` etiketidir**: kenar açık ama
+`DIFFICULT_PENALTY = 5.0` ile pahalı, A\* hesap yapıp alternatifi tercih ediyor.
+
+**Kontrol satırı** (`t_diff = 0.80`, `t_closed = 0.95`): hiçbir kenar etiketlenmiyor,
+rota referansa **birebir** dönüyor (12 düğüm, 1269 m). Bu, gözlenen tüm sapmaların
+gerçekten hasar etiketlerinden kaynaklandığını kanıtlar — kodun başka yerindeki bir
+yan etkiden değil.
+
+### Sonuç — topolojiye duyarlı davranış
+
+Aynı eşik ayarı iki senaryoda farklı sonuç veriyor:
+
+| Durum | Sonuç | Mekanizma |
+|---|---|---|
+| `t_diff` > max skor | rota değişmez | kontrol |
+| `difficult`, alternatif var | +44 m sapma | ceza çarpanı |
+| `difficult`, alternatif yok | rota değişmez | mecburiyet |
+| `closed`, tüm kollar kapalı | `NetworkXNoPath` | izolasyon |
+
+### Açık
+
+- **`ProjeContext.md` güncellenmedi** — Faz 4 mimarisi oraya taşınacak.
+- **20 binanın görsel doğrulaması yapılmadı.** K-19'da "uzman muhakemesi referansı"
+  olarak söz verildi: her binanın uydu görüntüsüne bakıp "bu bina çöktüğünde hangi
+  sokak kapanır" sorusu gözle cevaplanacak, kuralın çıktısıyla karşılaştırılacak.
+- **İki bina hiçbir kenarla eşleşmedi:** `adbab63d` (588 m², 51.6 m) ve `081e6c40`
+  (91 m², **280 m**). İkincisi aykırı — yoğun kentsel dokuda 280 m boyunca sokak
+  görmemek olağandışı. Ya OSM'de mahalle sokakları eksik ya bina büyük bir tesis
+  içinde. Görsel doğrulama gerekir.
+- **Sıfır mesafeli kenarlar:** `f3865521` ve `66ab3129` poligonları yol çizgisiyle
+  kesişiyor (0.0 m). Ya OSM ekseni bina üzerinden geçiyor ya bina sıfır cepheli
+  (Mexico City'de bitişik nizam yaygın). Mesafeyi ters orantıyla kullanan bir
+  formüle geçilirse sıfıra bölme riski.
+- **Kahramanmaraş'a transfer** — K-17'deki transfer varsayımı: Mexico City yapı stoku
+  Antakya'dan farklı (yönetmelik, kat dağılımı) ve 2017 Puebla'da yıkım **noktasaldı**,
+  mahalleler düzleşmedi. Kahramanmaraş'ta yıkım çok daha yaygın; eşikler ve `R`
+  yeniden bakılmalı.
+
+### Karara dönüşenler
+K-15, K-16, K-17, K-18, K-19
+
+---
+
 ## [Faz 2c — Kuzey anotasyon turu tamamlandı] — 2026-08-05
 ### Yapılanlar
 - Kuzey 100 kalibrasyon görevini etiketledi (`annotations_kuzey.json`, 10 adet `emin-degilim`)

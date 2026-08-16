@@ -32,7 +32,11 @@ sadece `traversability` etiketinin kaynağı değişir.
   - [x] CVA baseline — **recall 0.72 @ precision 0.20**
   - [ ] Siamese CNN
   - [ ] Foundation backbone
-- [ ] **Faz 4** — Köprü katmanı
+- [x] **Faz 4** — Köprü katmanı *(mexico-earthquake üzerinde; Kahramanmaraş transferi açık)*
+  - [x] `damage_pressure` skoru (K-19) — bina hasarı → yol maliyeti
+  - [x] Rota doğrulaması: SAPMA (+44 m) ve IZOLASYON (`NetworkXNoPath`) senaryoları
+  - [ ] 20 ağır hasarlı binanın görsel doğrulaması (uzman muhakemesi referansı)
+  - [ ] Kahramanmaraş'a transfer — eşikler ve `R` yeniden bakılacak
 - [ ] **Faz 5** — Kademe 2: yol yüzeyi segmentasyonu
 - [ ] **Faz 6** — Kalibrasyon ve uçtan uca değerlendirme
 
@@ -90,4 +94,9 @@ python scripts/<ad>.py
 İki kişi, ayrı Claude Project'leri, ortak knowledge = `docs/` altındaki üç dosya.
 Faz sonlarında güncellenir ve Project'e yeniden yüklenir.
 
-**Güncel iş bölümü:** etiketleme izi (Faz 2c) ve model izi (Faz 3) paralel yürüyor.
+**Güncel iş bölümü:** etiketleme izi (Faz 2c, Meyusun'un anotasyon turu) ve köprü
+katmanı izi (Faz 4, tamamlandı) paralel yürüdü. Faz 4'ün Faz 3'e bağımlı olmaması
+K-18'in doğrudan sonucudur: köprü katmanının girdisi sabit şemalı bir CSV'dir, modeli
+çağırmaz. Bugün xBD uzman etiketiyle beslendi, model hazır olduğunda aynı şemayla
+`model_v1` kaynağı kullanılacak — ve aynı bölgede iki koşu karşılaştırılarak modelin
+hatasının rotaya ne kadar yansıdığı ölçülebilecek.
