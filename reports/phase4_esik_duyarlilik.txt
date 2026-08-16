@@ -1,0 +1,15 @@
+[graf] data/mexico_city_graph_faz4.graphml
+       133559 kenar
+
+[referans — hasar yok] rota 29 dugum, 1798 m
+
+ t_diff  t_closed  closed  difficult  sonuc
+--------------------------------------------------------------------
+   0.05      0.30      13        125  ULASILAMIYOR — hedef izole
+   0.10      0.40      11         68  ULASILAMIYOR — hedef izole
+   0.15      0.50      10         20  ULASILAMIYOR — hedef izole
+   0.20      0.50      10         11  ULASILAMIYOR — hedef izole
+   0.20      0.60      10         11  ULASILAMIYOR — hedef izole
+   0.30      0.70       2         11  rota 29 dugum, 1798 m  (degismedi)
+
+Not: kenarlar cift yonludur; 'closed 10' = ~5 fiziksel sokak.
