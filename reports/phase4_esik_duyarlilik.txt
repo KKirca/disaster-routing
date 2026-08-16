@@ -1,15 +1,45 @@
 [graf] data/mexico_city_graph_faz4.graphml
        133559 kenar
 
-[referans — hasar yok] rota 29 dugum, 1798 m
 
- t_diff  t_closed  closed  difficult  sonuc
---------------------------------------------------------------------
-   0.05      0.30      13        125  ULASILAMIYOR — hedef izole
-   0.10      0.40      11         68  ULASILAMIYOR — hedef izole
-   0.15      0.50      10         20  ULASILAMIYOR — hedef izole
-   0.20      0.50      10         11  ULASILAMIYOR — hedef izole
-   0.20      0.60      10         11  ULASILAMIYOR — hedef izole
-   0.30      0.70       2         11  rota 29 dugum, 1798 m  (degismedi)
+====================================================================
+SENARYO: IZOLASYON   (6184109963 -> 1860819095)
+====================================================================
+  Cikmaz sokak adasina disaridan erisim.
+  Hedef kavsagin UC KOLU DA hasarli (0.638/0.697/0.677); esik 0.638'in altina inince ada tamamen izole olur.
+  Izgara planda bir sokak kapanirsa arac dolanir, cikmaz sokak adasinda tek baglanti kapanirsa iceridekiler erisilemez hale gelir.
+  Bu senaryo CLOSED mekanizmasini sinar..
+
+  [referans — hasar yok] 29 dugum, 1798 m
+
+   t_diff  t_closed  closed  difficult  sonuc
+  ------------------------------------------------------------------
+     0.05      0.30      13        125  ULASILAMIYOR — hedef izole
+     0.10      0.40      11         68  ULASILAMIYOR — hedef izole
+     0.15      0.50      10         20  ULASILAMIYOR — hedef izole
+     0.20      0.50      10         11  ULASILAMIYOR — hedef izole
+     0.30      0.70       2         11  29 dugum, 1798 m  (degismedi)
+     0.10      0.80       0         79  29 dugum, 1798 m  (degismedi)
+     0.10      0.95       0         79  29 dugum, 1798 m  (degismedi)
+     0.80      0.95       0          0  29 dugum, 1798 m  (degismedi)
+
+====================================================================
+SENARYO: SAPMA   (8339935731 -> 292423735)
+====================================================================
+  Calle Los Mendoza (skor 0.759) uzerinden gecen rota, ancak bolge bagi antili (1500 m icinde 239 dugum) ve alternatif mevcut.
+  Bu senaryo DIFFICULT mekanizmasini sinar: kenar kapali olmasa bile ceza carpani (DIFFICULT_PENALTY) nedeniyle A* alternatife sapar..
+
+  [referans — hasar yok] 12 dugum, 1269 m
+
+   t_diff  t_closed  closed  difficult  sonuc
+  ------------------------------------------------------------------
+     0.05      0.30      13        125  18 dugum, 1313 m  (+44 m SAPTI)
+     0.10      0.40      11         68  18 dugum, 1313 m  (+44 m SAPTI)
+     0.15      0.50      10         20  18 dugum, 1313 m  (+44 m SAPTI)
+     0.20      0.50      10         11  18 dugum, 1313 m  (+44 m SAPTI)
+     0.30      0.70       2         11  18 dugum, 1313 m  (+44 m SAPTI)
+     0.10      0.80       0         79  18 dugum, 1313 m  (+44 m SAPTI)
+     0.10      0.95       0         79  18 dugum, 1313 m  (+44 m SAPTI)
+     0.80      0.95       0          0  12 dugum, 1269 m  (degismedi)
 
 Not: kenarlar cift yonludur; 'closed 10' = ~5 fiziksel sokak.

@@ -71,8 +71,20 @@ T_DIFF = 0.20
 # 0.638'in altina inince ada tamamen izole oluyor. Bu, deprem sonrasi
 # gercek bir olgudur: izgara planda bir sokak kapanirsa arac dolanir,
 # cikmaz sokak adasinda tek baglanti kapanirsa iceridekiler izole olur.
-BASLANGIC = 6184109963
-HEDEF = 1860819095
+SENARYOLAR = [
+    # (ad, baslangic, hedef, aciklama)
+    ("IZOLASYON", 6184109963, 1860819095,
+     "Cikmaz sokak adasina disaridan erisim. Hedef kavsagin UC KOLU DA "
+     "hasarli (0.638/0.697/0.677); esik 0.638'in altina inince ada tamamen "
+     "izole olur. Izgara planda bir sokak kapanirsa arac dolanir, cikmaz "
+     "sokak adasinda tek baglanti kapanirsa iceridekiler erisilemez hale "
+     "gelir. Bu senaryo CLOSED mekanizmasini sinar."),
+    ("SAPMA", 8339935731, 292423735,
+     "Calle Los Mendoza (skor 0.759) uzerinden gecen rota, ancak bolge "
+     "bagi antili (1500 m icinde 239 dugum) ve alternatif mevcut. Bu senaryo "
+     "DIFFICULT mekanizmasini sinar: kenar kapali olmasa bile ceza carpani "
+     "(DIFFICULT_PENALTY) nedeniyle A* alternatife sapar."),
+]
 
 
 def etiketle(G, t_diff, t_closed):
@@ -134,34 +146,52 @@ def main():
     G = ox.load_graphml(GRAPH)
     print(f"       {G.number_of_edges()} kenar\n")
 
-    # Referans: hasarsiz senaryo (tum kenarlar passable)
-    for _, _, _, d in G.edges(keys=True, data=True):
-        d["traversability"] = "passable"
-    y0, L0 = rota(G, BASLANGIC, HEDEF)
-    print(f"[referans — hasar yok] rota {len(y0)} dugum, {L0:.0f} m\n")
-
     if args.tara:
+        # t_closed 0.80/0.95: max skor 0.759 oldugu icin hicbir kenar
+        # closed olamaz. Bu satirlar DIFFICULT mekanizmasini yalitir —
+        # sapma varsa onu ceza carpani uretmistir, kapatma degil.
+        # Son satir (0.80/0.95): t_diff de max skorun ustunde, yani HICBIR
+        # kenar etiketlenmiyor. Rota referansa donmeli — donmezse etiketleme
+        # mantiginda hata var demektir (kontrol satiri).
         ciftler = [(0.05, 0.30), (0.10, 0.40), (0.15, 0.50),
-                   (0.20, 0.50), (0.20, 0.60), (0.30, 0.70)]
+                   (0.20, 0.50), (0.30, 0.70), (0.10, 0.80), (0.10, 0.95),
+                   (0.80, 0.95)]
     else:
         ciftler = [(args.t_diff, args.t_closed)]
 
-    print(f"{'t_diff':>7s} {'t_closed':>9s} {'closed':>7s} {'difficult':>10s}"
-          f"  sonuc")
-    print("-" * 68)
-    for td, tc in ciftler:
+    for ad, A, B, aciklama in SENARYOLAR:
+        print(f"\n{'=' * 68}")
+        print(f"SENARYO: {ad}   ({A} -> {B})")
+        print(f"{'=' * 68}")
+        for satir in aciklama.split(". "):
+            if satir.strip():
+                print(f"  {satir.strip()}.")
+
         for _, _, _, d in G.edges(keys=True, data=True):
-            d.pop("traversability", None)
-        etiketle(G, td, tc)
-        nc, nd = say(G)
-        yol, L = rota(G, BASLANGIC, HEDEF)
-        if yol is None:
-            s = "ULASILAMIYOR — hedef izole"
-        else:
-            fark = L - L0
-            s = (f"rota {len(yol)} dugum, {L:.0f} m"
-                 + (f"  (+{fark:.0f} m)" if fark > 1 else "  (degismedi)"))
-        print(f"{td:7.2f} {tc:9.2f} {nc:7d} {nd:10d}  {s}")
+            d["traversability"] = "passable"
+        y0, L0 = rota(G, A, B)
+        if y0 is None:
+            print("  [referans] hasarsiz grafta bile ulasilamiyor — atlaniyor")
+            continue
+        print(f"\n  [referans — hasar yok] {len(y0)} dugum, {L0:.0f} m\n")
+
+        print(f"  {'t_diff':>7s} {'t_closed':>9s} {'closed':>7s} "
+              f"{'difficult':>10s}  sonuc")
+        print("  " + "-" * 66)
+        for td, tc in ciftler:
+            for _, _, _, d in G.edges(keys=True, data=True):
+                d.pop("traversability", None)
+            etiketle(G, td, tc)
+            nc, nd = say(G)
+            yol, L = rota(G, A, B)
+            if yol is None:
+                r = "ULASILAMIYOR — hedef izole"
+            else:
+                fark = L - L0
+                r = (f"{len(yol)} dugum, {L:.0f} m"
+                     + (f"  (+{fark:.0f} m SAPTI)" if fark > 1
+                        else "  (degismedi)"))
+            print(f"  {td:7.2f} {tc:9.2f} {nc:7d} {nd:10d}  {r}")
 
     print("\nNot: kenarlar cift yonludur; 'closed 10' = ~5 fiziksel sokak.")
     if not args.tara:
