@@ -6,7 +6,114 @@
 
 ---
 
-## [Faz 4 — 20 binanın görsel doğrulaması tamamlandı] — 2026-08-17
+## [Faz 4 — doğrulama, kararlar, Kahramanmaraş transferi] — 2026-08-17
+
+### Artçı sarsıntı riski — K-20 (karar bağlandı)
+
+20 bina görsel doğrulamasında (vaka 13, `4db97035`, 1499 m²) ortaya çıkan soru:
+yol yüzeyi temiz ama bina ağır hasarlı — artçı sarsıntıda çökerse araç tehlikede mi?
+
+Üç seçenek değerlendirildi:
+- **Tam risk modeli:** çökme olasılığı hesaplanıp rota maliyetine katılsın
+- **Kapsam dışı:** sistem sadece anlık fiziksel geçilebilirliği modeller
+- **Uyarı etiketi:** rota maliyetine dokunmadan "dikkat" etiketi eklensin
+
+**Karar: kapsam dışı (K-20).** Riski modelleyecek veri yok. Çökme olasılığı yapının
+taşıyıcı sistemine, hasarın gerçek yapısal karşılığına ve artçı büyüklüğüne bağlı —
+üçü de uydu görüntüsünden okunamıyor. Gerekçesiz bir eşik eklemek K-19'un "her
+parametrenin fiziksel dayanağı var" ilkesini çiğnerdi. Uyarı etiketi de elendi:
+sistemin çıktısını değiştirmediği için sınanamaz.
+
+Doğrulama sırasında netleşen temel kural: **karar bina hasarına değil, yol yüzeyinde
+görünür fiziksel engele dayanır.** Bu kural ilk 8 vakada netleşmemişti; kural
+sabitlendikten sonra 5 vaka yeniden değerlendirildi.
+
+---
+
+### ProjeContext.md güncellendi
+
+Belgede üç bölüm gerçeği yansıtmıyordu:
+
+**Mimari bölümü:** Köprü katmanı "kamyon genişliği (~3.5 m) eşiği", "darboğaz kuralı",
+"taraf-içi max toplama" ile tarif ediliyordu — bunların hiçbiri uygulanmadı. Erken plan
+metniydi. Yerine K-19'un gerçek formülü yazıldı ve eski planın neden uygulanmadığı not
+düşüldü. Bu kritik bir hataydı: Meyusun dosyayı Claude Project'ine yüklüyordu ve
+yapay zekası köprü katmanının var olmayan bir mekanizmayla çalıştığını sanıyordu.
+
+**Repo bölümü:** Sadece Meyusun'un reposu yazılıydı. Kuzey'in fork'u
+(`github.com/KKirca/disaster-routing`) ve `docs/`, `reports/` klasörleri eklendi.
+
+**Demo bölgesi:** Sadece Türkoğlu vardı. Faz 4'ün Mexico City'de geliştirildiği ve
+neden deprem verisi seçildiği eklendi (K-17 gerekçesi).
+
+---
+
+### Kahramanmaraş transferi
+
+**Maxar görüntüsü indirmeden yapıldı.** `data/emsr648/` klasöründe Copernicus EMSR648
+Kahramanmaraş hasar değerlendirmesi zaten mevcuttu. Üç AOI incelendi:
+
+| AOI | Bina | Ağır hasarlı | Oran | Seçim |
+|---|---:|---:|---:|---|
+| AOI04 | 7182 | 28 | %0.4 | elendi — neredeyse hasarsız |
+| AOI16 | 321 | 30 | %9.3 | elendi |
+| **AOI17** | **288** | **34** | **%11.8** | **seçildi** |
+
+AOI17 seçildi: en yüksek hasar oranı, Türkoğlu ile örtüşüyor, ve
+`graph_turkoglu.graphml` AOI17'yi tamamen kapsıyor — yeni graf indirmeye gerek kalmadı.
+Faz 1'in hazard katmanları (fay rüptürü, likefaksiyon) zaten o grafta mevcut: Faz 1
+ve Faz 4 aynı grafta birleşti.
+
+**K-21: `Possibly damaged` ihtiyat ağırlığı (0.20)**
+
+EMSR648'de `Possibly damaged` kategorisi xBD şemasında karşılıksız — bir **hasar
+derecesi değil, belirsizlik ifadesidir** (Copernicus analisti "bir şey var ama emin
+değilim" demektedir). AOI17'de 18 bina bu kategoridedir.
+
+İki uç seçenek ikisi de yanlış:
+- `no-damage` say → iyimser hata, K-16'ya ters
+- `major-damage` say → uydurma veri, K-19'un gerekçe ilkesini çiğner
+- Dışarıda bırak → araç belirsiz riskten habersiz geçer
+
+Beklenti değeri (0 + 0.60) / 2 = 0.30. Copernicus metodolojisi hafif hasar yönüne
+yatkın olduğu için **0.20'ye kalibre edildi.** Tek başına `T_CLOSED = 0.50`'yi hiçbir
+zaman geçemez; birkaç belirsiz bina kümeleşirse `difficult` üretebilir.
+
+`minor-damage` sınıfı EMSR648'de karşılıksız kaldı; K-19'daki 0.15 ağırlığı
+Kahramanmaraş koşusunda devreye girmez — tezde sınırlılık olarak belirtilecek.
+
+**Sonuçlar (Türkoğlu grafı, R=25 m, T_CLOSED=0.50, T_DIFF=0.20):**
+
+| | Mexico City | Kahramanmaraş |
+|---|---:|---:|
+| Etkili bina | 20 | 52 |
+| Etkilenen kenar | 234 | 314 |
+| Closed (≥0.50) | 2 | **28** |
+| Difficult (≥0.20) | 11 | **164** |
+| Rota sapması | +44 m | **+475 m** |
+
+Kahramanmaraş etkisi Mexico City'nin ~10 katı — beklenen, gerçek deprem bölgesi.
+
+**Üretilen görseller:**
+- `outputs/phase4_kahramanmaras_hasar.png` — hasar haritası, şehir merkezinde
+  kırmızı yoğunlaşma
+- `outputs/phase4_kahramanmaras_rota.png` — rota karşılaştırması, +475 m sapma
+
+**Scriptler:**
+- `scripts/phase4_build_emsr_csv.py` — EMSR648 → K-18 CSV dönüşümü
+- `scripts/phase4_damage_pressure.py` — K-21 ağırlığı eklendi
+
+### Açık
+- Meyusun'un kappa turu bekleniyor (Faz 2c kapısı)
+- Kappa ≥ 0.60 sonrası: Siamese CNN (Faz 3), gerçek Kahramanmaraş etiketlemesi
+- Eşik (T_CLOSED, T_DIFF) ve R'nin Kahramanmaraş'a özgü kalibrasyonu — K-17/K-19'da
+  transfer varsayımı olarak işaretlendi; saha verisi gelirse düzeltilebilir
+
+### Karara dönüşenler
+K-20, K-21
+
+---
+
 
 K-19'da söz verilen "uzman muhakemesi referansı" yapıldı: `scripts/phase4_verify_buildings.py`
 ile üretilen 40 görsel (`outputs/faz4_dogrulama/`) tek tek incelendi, her bina için
