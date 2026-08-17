@@ -411,6 +411,64 @@ bina hasarına değil, **yol yüzeyinde görünür fiziksel engele** dayanır.
 
 ---
 
+## K-21 · EMSR648 "Possibly damaged" kategorisi için ihtiyat ağırlığı
+**Karar:** EMSR648 `Possibly damaged` binalar K-18 CSV şemasına `damage_class =
+"possibly-damaged"` olarak yazılır ve K-19 formülünde **0.20 ağırlığı** alır.
+
+**Neden bu seçeneğe ihtiyaç var:**
+EMSR648 dört kategori kullanıyor: `Destroyed`, `Damaged`, `No visible damage`,
+`Possibly damaged`. İlk üçü xBD şemasına doğrudan eşleniyor (ProjeContext.md).
+`Possibly damaged` ise bir **hasar derecesi değil, belirsizlik ifadesidir** —
+Copernicus analisti "burada bir şey var ama emin değilim" demektedir. AOI17'de
+18 bina (toplam 288'in %6'sı) bu kategoridedir.
+
+İki uç seçenek ikisi de yanlış:
+- `no-damage` say → iyimser hata: bilgisizliği "hasar yok" diye işlemek
+  K-16'nın konservatif ilkesine ters; araç belirsiz riskten habersiz geçer
+- `major-damage` say → kötümser hata: belirsizliği kesin hasara dönüştürmek,
+  uydurma veri üretmek; K-19'un "her parametrenin gerekçesi var" ilkesini çiğner
+- Dışarıda bırak → operasyonel hata: bina "yok" sayılır, katkısı sıfır olur;
+  metodolojik olarak temiz ama araç belirsiz riski göremez
+
+**Neden 0.20:**
+K-19 ağırlıkları moloz hacmiyle orantılı: `destroyed` 1.00, `major` 0.60,
+`minor` 0.15. `Possibly damaged` için beklenti değeri en iyi (`no-damage`, 0.00)
+ile en kötü (`major-damage`, 0.60) ortalaması → 0.30. Ancak Copernicus analistleri
+ciddi hasarı atlamamaya öncelik verir; belirsizlik tipik olarak hafif hasar yönüne
+yatkındır. Bu asimetri nedeniyle beklenti değeri 0.20'ye kalibre edildi.
+
+**Operasyonel anlamı:**
+- 0.20, `T_DIFF = 0.20` eşiğinin tam sınırında — tek bina yakın komşuluk
+  hariç `difficult` üretmez
+- `T_CLOSED = 0.50`'yi hiçbir zaman tek başına geçemez (yolu kapatamaz)
+- Birkaç belirsiz bina kümeleşirse toplam baskı `difficult` üretebilir
+- Açık ifadeyle: "Bu bina hakkında bilgimiz eksik; en ihtiyatlı senaryo
+  hafif engeldir"
+
+**Tezde nasıl savunulur:**
+"Possibly damaged kategorisi bir şiddet derecesi değil belirsizlik ifadesidir.
+Bilgisizliği iyimser (sıfır) ya da kötümser (maksimum) saymak yerine,
+beklenti değerinden türetilmiş ve Copernicus metodolojisine göre kalibre
+edilmiş bir ihtiyat ağırlığı (0.20) kullanıldı. Bu değer tek başına yolu
+kapatamaz; sadece birden fazla belirsiz bina kümeleşirse 'difficult' baskısı
+üretir."
+
+**Uygulama:**
+`scripts/phase4_build_damage_csv.py` içinde EMSR648 dönüşümü sırasında:
+- `Destroyed`       → `destroyed`       (confidence=1.0)
+- `Damaged`         → `major-damage`    (confidence=1.0)
+- `No visible damage` → `no-damage`     (confidence=1.0)
+- `Possibly damaged` → `possibly-damaged` (confidence=0.0)
+  (confidence=0.0: belirsizliğin işareti; skor hesabında 0.20 ağırlığı alır)
+
+K-19 formülüne `possibly-damaged` → 0.20 satırı eklenir.
+
+**Sınırlılık (tezde belirtilecek):**
+`minor-damage` sınıfı EMSR648'de karşılıksız kaldı; K-19'daki 0.15 ağırlığı
+Kahramanmaraş koşusunda devreye girmez. Formül çalışır ama bir bileşeni ölü kalır.
+
+---
+
 ## Açık konular (henüz karara bağlanmadı)
 
 - Likefaksiyon eşiği `THRESHOLD = 0.05` fazla geniş — grafın yarısını

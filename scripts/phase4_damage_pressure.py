@@ -38,6 +38,10 @@ SINIF_AGIRLIK = {
     "major-damage": 0.60,
     "minor-damage": 0.15,
     "no-damage": 0.00,
+    # K-21: EMSR648 "Possibly damaged" — belirsizlik ifadesi, hasar derecesi degil.
+    # Beklenti degeri (0+0.60)/2=0.30, Copernicus metodolojisi hafif hasar yonune
+    # yatkin oldugu icin 0.20'ye kalibre edildi. Tek basina T_CLOSED'i asamaz.
+    "possibly-damaged": 0.20,
 }
 # Her faktor 0-1 araliginda tanimlidir. Katki bir OLASILIKTIR ("bu bina bu
 # yolu tikar mi?"), dolayisiyla 1'i asamaz. Sinirsiz carpim + min() kirpmasi
