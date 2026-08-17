@@ -19,11 +19,32 @@ uygulanabilir** bir sistem.
 1. **Hasar tespiti** — Siamese CNN (xBD), Prithvi-tipi foundation backbone,
    SAM etiketleme yardımcısı olarak, CVA/NDBI klasik baseline
 2. **Köprü katmanı** *(çekirdek özgünlük)* — bina hasarı → yol geçilebilirlik maliyeti
-   - taraf-içi max toplama + çapraz taraf summation
-   - üç kademe: `passable` / `difficult` / `closed`
-   - eşik: mevcut açık genişlik vs kamyon genişliği (~3.5 m)
-   - darboğaz (en kötü nokta) kuralı
-   - recall-öncelikli kalibrasyon
+   **Faz 4'te inşa edildi ve doğrulandı** (K-15…K-20, `scripts/phase4_*.py`).
+   - Girdi: sabit şemalı CSV — `uid, lon, lat, footprint_wkt, area_m2,
+     damage_class, confidence, source` (K-18). Katman modeli çağırmaz, `.npz`
+     okumaz; kaynağı `xbd_gt` de olabilir `model_v1` de.
+   - Ara değer: `damage_pressure` ∈ [0,1], graf kenar özniteliği (K-15)
+
+         katki = sinif × mesafe × alan × darlik      (her faktör 0-1)
+         damage_pressure = 1 - Π(1 - katki_i)
+
+           sinif  : destroyed 1.00 | major 0.60 | minor 0.15
+           mesafe : max(0, 1 - d/R),  R = 25 m,  d = POLİGON-kenar mesafesi
+           alan   : min(alan_m2 / 400, 1.0)
+           darlik : min(7.0 / W, 1.0),  W = highway tablosu + lanes düzeltmesi
+   - Çıktı: üç kademe `passable` / `difficult` / `closed`, eşikle türetilir
+   - Eşik **kasıtlı sabitlenmedi** — ground truth yok, seçip sonucuna bakmak
+     döngüsel olurdu. Varsayılan 0.50/0.20, duyarlılık analiziyle raporlanır.
+   - Birleştirme konservatif: en kısıtlayıcı etiket kazanır; Faz 4 Faz 1'in
+     yazdığı etiketi gevşetemez (K-16)
+   - Kapsam: yalnızca **anlık fiziksel geçilebilirlik**. Artçı sarsıntı çökme
+     riski kapsam dışı (K-20)
+
+   *Not: erken plan metninde geçen "taraf-içi max + çapraz summation",
+   "kamyon genişliği (~3.5 m) eşiği", "darboğaz kuralı" ve "recall-öncelikli
+   kalibrasyon" uygulanmadı. Gerekçeler K-19'da; özetle mesafe/alan/genişlik
+   çarpanları sürekli bir skorda birleştirildi ve kalibrasyon yerine duyarlılık
+   analizi seçildi (kalibre edilecek hedef değişken yok).*
 3. **Rota** — OSMnx yol grafı + ağırlıklı A*
 
 ### Temel mimari ilke
@@ -59,12 +80,19 @@ python scripts/<ad>.py     # tüm script'ler PROJE KÖKÜNDEN çalıştırılır
 
 ## Repo
 
-`github.com/Meyusun/disaster-routing`
+İki uzak depo kullanılıyor:
+- `github.com/Meyusun/disaster-routing` — orijinal (`origin`)
+- `github.com/KKirca/disaster-routing` — Kuzey'in fork'u (`myrepo`)
+
+Faz 2c etiketleme ve Faz 4 köprü katmanı çalışması `myrepo`'da. Meyusun'un
+takip etmesi için: `git remote add kuzey <url>` sonra `git fetch kuzey`.
 
 ```
 ~/disaster-routing/
 ├── scripts/     # tüm .py dosyaları
-├── data/        # veri (xbd/ gitignore'da, gerisi repoda)
+├── docs/        # ProjeContext.md, Kararlar.md, ChangeLog.md, FAZ4_KULLANIM.md
+├── data/        # veri (xbd/ ve buyuk graf'lar gitignore'da)
+├── reports/     # metin ciktilari (dogrulama, duyarlilik analizi)
 ├── outputs/     # üretilen görseller (gitignore'da, anahtar olanlar -f ile eklendi)
 ├── cache/
 ├── README.md, environment.yml, .gitignore
@@ -91,6 +119,20 @@ python scripts/<ad>.py     # tüm script'ler PROJE KÖKÜNDEN çalıştırılır
 **Türkoğlu** (`CENTER = (37.38, 36.87)`, `DIST = 5000`). Seçilme sebebi: fay rüptürü
 bölgeden geçiyor, EMSR648 AOI17 kapsıyor, ve en yüksek bina hasar oranına sahip
 (%11.8). Dört katman burada hizalandı ve doğrulandı.
+
+**Faz 4 geliştirme zemini ayrıdır: `mexico-earthquake` / Mexico City**
+(`CENTER = (19.3154, -99.1867)`, `DIST = 11000`). Sebep (K-17): köprü katmanı
+deprem enkazının yolu nasıl tıkadığını modelliyor ve bu davranış afet tipine
+göre kökten değişiyor — yangında bina çöker ama yola moloz saçmaz, selde yol
+suyla kapanır. xBD'deki tek deprem seti mexico-earthquake'tir (121 karo,
+32.271 bina, 20'si ağır hasarlı). En büyük set olan socal-fire (823 karo)
+burada yanlış settir.
+
+Türkoğlu ve Mexico City farklı amaçlara hizmet eder: Türkoğlu Faz 0-2'nin
+hazard katmanı doğrulama zemini, Mexico City Faz 4'ün geliştirme zemini.
+Kahramanmaraş'a transfer bir **varsayımdır** — yapı stoku farklı ve 2017
+Puebla'da yıkım noktasaldı, mahalleler düzleşmedi. Eşikler ve `R` orada
+yeniden bakılmalı.
 
 ## Şema eşlemesi — EMSR648 ↔ xBD
 
