@@ -249,8 +249,24 @@ Aynı eşik ayarı iki senaryoda farklı sonuç veriyor:
   mahalleler düzleşmedi. Kahramanmaraş'ta yıkım çok daha yaygın; eşikler ve `R`
   yeniden bakılmalı.
 
+### Kapanış — artçı sarsıntı konusu karara bağlandı (2026-08-17)
+20 vaka doğrulamasında (vaka 13, `4db97035`) ortaya çıkan soru: yol yüzeyi temiz ama
+bina ağır hasarlı — artçı sarsıntıda çökerse? Üç seçenek değerlendirildi: (A) tam risk
+modeli, (B) kapsam dışı bırak, (orta yol) rota maliyetine dokunmayan uyarı etiketi.
+
+**Karar: B — kapsam dışı** (K-20). Riski modelleyecek veri yok; çökme olasılığı taşıyıcı
+sisteme, hasarın yapısal karşılığına ve artçı büyüklüğüne bağlı ve üçü de uydudan
+okunamıyor. Seçilecek her eşik gerekçesiz kalırdı — K-19'da her parametre için kurulan
+fiziksel gerekçe zincirinin karşılığı olmayan bir sayı eklemek olurdu. Orta yol da
+elendi: etiket sistemin çıktısını değiştirmediği için sınanamaz.
+
+Doğrulama sırasında netleşen ve kayda değer kural: **karar bina hasarına değil, yol
+yüzeyinde görünür fiziksel engele dayanır.** İlk 8 vakada bu netleşmemişti ve aynı
+gözlem bazen `difficult` bazen `passable` sonucu verdi; kural sabitlendikten sonra
+5 vaka (2, 3, 6, 15, 18) yeniden değerlendirildi.
+
 ### Karara dönüşenler
-K-15, K-16, K-17, K-18, K-19
+K-15, K-16, K-17, K-18, K-19, K-20
 
 ---
 

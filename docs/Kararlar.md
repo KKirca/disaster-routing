@@ -375,6 +375,42 @@ gerektirmiyor — örneklem küçük (n=20).
 
 ---
 
+## K-20 · Artçı sarsıntı riski kapsam dışıdır
+**Karar:** Sistem yalnızca **anlık fiziksel geçilebilirliği** modeller. Hasarlı
+binaların artçı sarsıntıda çökerek yolu kapatma riski hesaba katılmaz; ne rota
+maliyetine girer ne de ayrı bir uyarı etiketi olarak üretilir. K-02'deki
+`traversability` sözleşmesi (`passable` / `difficult` / `closed`) değişmez.
+
+**Gerekçe:** Riski modellemek için gereken hiçbir veri elimizde yok. Çökme
+olasılığı yapının taşıyıcı sistemine, hasarın gerçek yapısal karşılığına ve artçı
+büyüklüğüne bağlıdır — üçü de uydu görüntüsünden okunamaz. Bir eşik seçilse
+("30 m içinde ağır hasarlı bina varsa uyar") o eşiğin *neden 30 metre olduğu*
+savunulamaz. Bu, K-19'da her parametre için kurulan gerekçe zincirinin
+(R = 25 m → devrilen duvar kendi yüksekliği kadar düşer; alan → moloz hacmi;
+darlik → tıkanma oranı) karşılığı olmayan bir sayı eklemek olurdu.
+
+Kapsamı bilerek sınırlamak, gerekçesiz bir mekanizma eklemekten güçlüdür.
+
+**Reddedildi — A, tam risk modeli:** Çökme olasılığı hesaplayıp rota maliyetine
+katmak. Sebep: hiçbir şekilde doğrulanamaz ve K-19'un savunulabilirlik ilkesini
+zayıflatır.
+
+**Reddedildi — Orta yol, bilgilendirme etiketi:** Rota maliyetine dokunmadan
+ağır hasarlı binalara yakın segmentlere "dikkat" etiketi eklemek. İki sebeple:
+(a) etiketin eşiği gerekçesiz kalır, (b) sistemin çıktısını değiştirmediği için
+sınanamaz — kullanılmayan ve doğrulanamayan bir çıktı projeye yük olur.
+
+**Tezde nasıl savunulur:** "Artçı sarsıntı riskini neden hesaba katmadınız?"
+sorusunun cevabı hazırdır: değerlendirildi, savunulabilir biçimde modellenemediği
+için kapsam dışı bırakıldı ve bu sınır belgelendi. Bu, bilinçli bir kapsam
+kararıdır.
+
+**Bağlam:** Vaka 13'ün (`4db97035`, 1499 m²) görsel doğrulamasında ortaya çıktı —
+yol yüzeyi temiz ama bina ağır hasarlı. Doğrulamanın netleştirdiği kural: karar
+bina hasarına değil, **yol yüzeyinde görünür fiziksel engele** dayanır.
+
+---
+
 ## Açık konular (henüz karara bağlanmadı)
 
 - Likefaksiyon eşiği `THRESHOLD = 0.05` fazla geniş — grafın yarısını
@@ -384,10 +420,4 @@ gerektirmiyor — örneklem küçük (n=20).
 - 516 karo binasız olduğu için koordinatsız kaldı, fold'a atanamadı.
 - Nokta/blok granülerlik farkı: model bina bazında çıktı verecek, EMSR648
   blok bazında. Karşılaştırma yöntemi netleşmedi.
-- **Artçı sarsıntı riski — kapsam dışı mı kalmalı? (2026-08-17, vaka 13'te ortaya çıktı)**
-  Mevcut `traversability` sözleşmesi (K-02) **fiziksel geçilebilirliği** tanımlıyor
-  (`closed` = moloz var, geçilemez), **gelecek riskini** değil. Ama hasarlı bir binanın
-  yanından geçmek, bina artçıda çökerse aracı enkaz altında bırakma riski taşıyor —
-  bu, mevcut üç kademeli modelde hiç temsil edilmiyor. Kullanıcı bunu 20 vaka
-  doğrulaması bitince ayrıca, kapsamlı tartışmak istedi. **Henüz karara bağlanmadı.**
 - GPU durumu teyit edilmedi (Siamese CNN eğitimi için gerekli).
