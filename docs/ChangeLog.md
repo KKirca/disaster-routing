@@ -6,6 +6,57 @@
 
 ---
 
+## [Faz 4 — 20 binanın görsel doğrulaması tamamlandı] — 2026-08-17
+
+K-19'da söz verilen "uzman muhakemesi referansı" yapıldı: `scripts/phase4_verify_buildings.py`
+ile üretilen 40 görsel (`outputs/faz4_dogrulama/`) tek tek incelendi, her bina için
+bağımsız closed/difficult/passable kararı verildi, kuralın çıktısıyla karşılaştırıldı.
+Sonuç: `reports/phase4_bina_dogrulama.csv`.
+
+### Yöntem netleştirmesi (vaka 4'te ortaya çıktı)
+
+İlk 8 kararda tutarsızlık görüldü: aynı gözlem ("çatı örüntüsü korunmuş, yıkım izi yok")
+bazı vakalarda `difficult`, bazılarında `passable` sonucu üretti. Kriter netleştirildi:
+**karar bina hasarına değil, yol yüzeyinde görünür fiziksel engele dayanır.**
+`traversability` sözleşmesi zaten fiziksel geçilebilirliği tanımlıyordu (K-02), gelecek
+riskini değil — "hasarlı bina yakında, içim rahat etmedi" gerekçesi `difficult` için
+yeterli değil. Bu netleştirmeden sonra 5 vaka (2, 3, 6, 15, 18) yeniden değerlendirildi;
+ikisi (2, 18) karar değiştirdi, üçü (3, 6, 15) aynı kaldı ama gerekçesi "moloz" değil
+"görüntü bulanıklığı/ağaç örtüsü nedeniyle yol net okunamıyor" oldu (ihtiyati karar).
+
+### Sonuç
+
+**12/19 uyumlu (%63.2)**, 7 ayrışma, 1 karşılaştırma dışı (bkz. aşağı). Ayrışma iki
+kümede toplanıyor — rastgele gürültü değil, sistematik:
+
+**Küme A — kural `passable`, uzman `difficult` (5 vaka: 1, 3, 6, 7, 15).**
+Bina katkısı `T_DIFF = 0.20` eşiğinin altında (0.052–0.175 arası) ama uzman yine de
+`difficult` dedi. Dördünde gerekçe görüntü kalitesi (bulanıklık, ağaç örtüsü — yol
+yüzeyi net okunamıyor, ihtiyati karar). Vaka 7 farklı: küçük taban alanı (51 m²) ve
+mesafe (8.1 m) `katki`yi 0.052'ye düşürüyor ama görsel olarak ciddi enkaz var — K-19'un
+alan/mesafe ağırlıklandırmasının küçük ama yol kenarındaki yıkımları hafife
+alabileceğine dair somut bir örnek.
+
+**Küme B — kural `closed`, uzman `difficult` (2 vaka: 13, 20).** Bina katkısı
+`T_CLOSED = 0.50` eşiğinin üzerinde (0.525, 0.600) ama her ikisinde de çatı örüntüsü
+büyük ölçüde korunmuş, yakın kırpmada tam yıkım seçilmiyor. `T_CLOSED = 0.50`'nin,
+yapı bütünlüğünü büyük ölçüde koruyan ama yüksek katkı üreten (büyük alan + yola çok
+yakın) vakalarda fazla agresif olabileceğine işaret ediyor.
+
+**Karşılaştırma dışı — sıfır katkılı 3 vaka (9, 12, 19).** Kural bu binalara hiçbir
+kenar atamıyor (25 m içinde yol yok). İkisi (9, 19) görsel olarak doğrulandı: yoğun
+sanayi/pazar dokusu içinde, gerçekten izole — OSM eksikliği değil. Vaka 12 (`081e6c40`,
+280 m mesafeli aykırı vaka) bir **lunapark** içinde çıktı — izolasyon mantıklı, ama
+ağaç örtüsü + bulanıklık nedeniyle hasar durumu görsel olarak belirlenemedi.
+
+### Açık — taşındı
+
+`Kararlar.md` → K-19 altına eklendi: eşik agresifliği bulgusu, alan/mesafe
+ağırlıklandırma sınırı, artçı sarsıntı riski kapsam tartışması (henüz karara
+bağlanmadı, kullanıcı 20 vaka bitince ayrıca ele alınmasını istedi).
+
+---
+
 ## [Faz 4 — köprü katmanı tamamlandı] — 2026-08-16
 
 Bina hasarını yol geçilebilirliğine çeviren katman. Projenin **özgün katkısı** budur:
@@ -184,13 +235,11 @@ Aynı eşik ayarı iki senaryoda farklı sonuç veriyor:
 ### Açık
 
 - **`ProjeContext.md` güncellenmedi** — Faz 4 mimarisi oraya taşınacak.
-- **20 binanın görsel doğrulaması yapılmadı.** K-19'da "uzman muhakemesi referansı"
-  olarak söz verildi: her binanın uydu görüntüsüne bakıp "bu bina çöktüğünde hangi
-  sokak kapanır" sorusu gözle cevaplanacak, kuralın çıktısıyla karşılaştırılacak.
+- ~~20 binanın görsel doğrulaması yapılmadı.~~ **Tamamlandı — 2026-08-17, yukarı bakınız.**
 - **İki bina hiçbir kenarla eşleşmedi:** `adbab63d` (588 m², 51.6 m) ve `081e6c40`
-  (91 m², **280 m**). İkincisi aykırı — yoğun kentsel dokuda 280 m boyunca sokak
-  görmemek olağandışı. Ya OSM'de mahalle sokakları eksik ya bina büyük bir tesis
-  içinde. Görsel doğrulama gerekir.
+  (91 m², **280 m**). **Görsel doğrulamayla açıklığa kavuştu (2026-08-17):**
+  `adbab63d` bir sanayi/depo kompleksi içinde, `081e6c40` bir lunapark içinde —
+  ikisi de gerçekten izole, OSM eksikliği değil.
 - **Sıfır mesafeli kenarlar:** `f3865521` ve `66ab3129` poligonları yol çizgisiyle
   kesişiyor (0.0 m). Ya OSM ekseni bina üzerinden geçiyor ya bina sıfır cepheli
   (Mexico City'de bitişik nizam yaygın). Mesafeyi ters orantıyla kullanan bir

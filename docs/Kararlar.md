@@ -3,7 +3,7 @@
 > Alınan tasarım kararları, **gerekçeleri** ve **reddedilen alternatifler**.
 > Amaç: aynı tartışmayı iki kez yapmamak.
 > Yeni karar eklerken formatı koru: karar → gerekçe → reddedilen alternatif.
-> Son güncelleme: 2026-07-30
+> Son güncelleme: 2026-08-17
 
 ---
 
@@ -276,14 +276,19 @@ ve hata ayrıştırma kaybı.
 **Karar:** Her (bina, yol kenarı) çifti için bir katkı hesaplanır, kenar başına
 doygunlaşan birleştirmeyle `damage_pressure` üretilir.
 
-    katki = sinif × mesafe × alan × genislik
+    katki = sinif × mesafe × alan × darlik
 
-      sinif    : destroyed 1.00 | major-damage 0.60 | minor-damage 0.15 | no-damage 0.00
-      mesafe   : max(0, 1 - d/R)          d = bina POLIGONU ile kenar arası mesafe (m)
-      alan     : min(alan_m2 / 199, 3.0)  199 m² = bu setteki medyan bina
-      genislik : min(7.0 / W, 1.3)        W = tahmini sokak genişliği (m)
+      sinif  : destroyed 1.00 | major-damage 0.60 | minor-damage 0.15 | no-damage 0.00
+      mesafe : max(0, 1 - d/R)         d = bina POLIGONU ile kenar arası mesafe (m)
+      alan   : min(alan_m2 / 400, 1.0)
+      darlik : min(7.0 / W, 1.0)       W = tahmini sokak genişliği (m)
 
     damage_pressure = 1 - Π(1 - katki_i)
+
+> **Not (2026-08-17):** `alan` ve `genislik` çarpanları başlangıçta `min(x, 3.0)` /
+> `min(x, 1.3)` idi (1'i aşabiliyordu, `katki` sonradan `min(.,1.0)` ile kırpılıyordu).
+> Bu yapısal hataydı — bkz. `ChangeLog.md` "Skor kırpması" maddesi. Yukarıdaki, düzeltilmiş
+> ve fiilen kullanılan formüldür; her faktör tanım gereği 0–1 aralığındadır.
 
 **Sokak genişliği tahmini (W):** OSM'de `width` alanı pratikte boştur (133.559
 kenarın 288'i, %0.2). `lanes` %24.3 dolu, `highway` %100 dolu. Bu nedenle taban
@@ -351,6 +356,23 @@ kuralın çıktısıyla karşılaştırılması yoluyla yapılacaktır (uzman mu
 **Açık parametre:** `R` (moloz yayılma mesafesi) henüz sabitlenmedi. Skor dağılımı
 görüldükten sonra eşiklerle (K-15) birlikte ayarlanacak.
 
+**Doğrulama sonucu (2026-08-17):** 20 binanın uzman muhakemesiyle karşılaştırılması
+%63.2 (12/19) uyum verdi. Ayrışma rastgele değil, iki sistematik kümede toplandı
+(detay: `ChangeLog.md`, `reports/phase4_bina_dogrulama.csv`):
+
+- Düşük katkıda (`< T_DIFF`) uzman çoğunlukla yine de `difficult` dedi — çoğunlukla
+  görüntü okunurluğu belirsizliğinden (ihtiyati karar), bir vakada (uid `5d0b8a88`)
+  küçük taban alanı + mesafenin `katki`yi olması gerekenden düşürmesinden.
+- Yüksek katkıda (`≥ T_CLOSED`) iki vaka (uid `4db97035`, `66ab3129`) uzman tarafından
+  `difficult` bulundu — yapı bütünlüğü büyük ölçüde korunmuş görünüyordu, formülün
+  `closed` çıkarımı (alan+mesafe+darlik birleşimi) görsel kanıttan daha kötümserdi.
+
+Bu, formülün **yanlış** olduğunu değil, `T_CLOSED = 0.50` sabit eşiğinin özellikle
+büyük-alanlı-yola-çok-yakın vakalarda agresif tarafta durabileceğini gösteriyor.
+Eşik zaten K-15 gereği sabitlenmedi (duyarlılık analiziyle raporlanıyor); bu bulgu
+o analizin okunuşuna bir veri noktası ekliyor, tek başına eşik değişikliğini
+gerektirmiyor — örneklem küçük (n=20).
+
 ---
 
 ## Açık konular (henüz karara bağlanmadı)
@@ -362,4 +384,10 @@ görüldükten sonra eşiklerle (K-15) birlikte ayarlanacak.
 - 516 karo binasız olduğu için koordinatsız kaldı, fold'a atanamadı.
 - Nokta/blok granülerlik farkı: model bina bazında çıktı verecek, EMSR648
   blok bazında. Karşılaştırma yöntemi netleşmedi.
+- **Artçı sarsıntı riski — kapsam dışı mı kalmalı? (2026-08-17, vaka 13'te ortaya çıktı)**
+  Mevcut `traversability` sözleşmesi (K-02) **fiziksel geçilebilirliği** tanımlıyor
+  (`closed` = moloz var, geçilemez), **gelecek riskini** değil. Ama hasarlı bir binanın
+  yanından geçmek, bina artçıda çökerse aracı enkaz altında bırakma riski taşıyor —
+  bu, mevcut üç kademeli modelde hiç temsil edilmiyor. Kullanıcı bunu 20 vaka
+  doğrulaması bitince ayrıca, kapsamlı tartışmak istedi. **Henüz karara bağlanmadı.**
 - GPU durumu teyit edilmedi (Siamese CNN eğitimi için gerekli).
