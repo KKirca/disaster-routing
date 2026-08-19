@@ -1,0 +1,28 @@
+[bolge] kahramanmaras
+[graf]  data/graph_turkoglu_faz4.graphml
+       3700 kenar
+
+
+====================================================================
+SENARYO: SAPMA_KM   (2388129147 -> 10617812226)
+====================================================================
+  Turkoglu/Kahramanmaras — EMSR648 AOI17 gercek hasar verisi.
+  Referans rota 1593 m; hasarli grafta 2068 m (+475 m).
+  28 closed, 164 difficult kenar.
+  Mexico City'nin ~10 kati etki.
+  Bu senaryo Faz 4'un gercek hedef bolgede calistigini kanitlar..
+
+  [referans — hasar yok] 28 dugum, 1593 m
+
+   t_diff  t_closed  closed  difficult  sonuc
+  ------------------------------------------------------------------
+     0.05      0.30     102        178  31 dugum, 2068 m  (+475 m SAPTI)
+     0.10      0.40      52        187  31 dugum, 2068 m  (+475 m SAPTI)
+     0.15      0.50      28        159  31 dugum, 2068 m  (+475 m SAPTI)
+     0.20      0.50      28        138  31 dugum, 2068 m  (+475 m SAPTI)
+     0.30      0.70      16         86  31 dugum, 2068 m  (+475 m SAPTI)
+     0.10      0.80       8        231  31 dugum, 2068 m  (+475 m SAPTI)
+     0.10      0.95       6        233  31 dugum, 2068 m  (+475 m SAPTI)
+     0.80      0.95       6          2  30 dugum, 1831 m  (+238 m SAPTI)
+
+Not: kenarlar cift yonludur; 'closed 10' = ~5 fiziksel sokak.

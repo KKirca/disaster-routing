@@ -62,29 +62,40 @@ import osmnx as ox
 sys.path.insert(0, "scripts")
 from phase0_routing import DIFFICULT_PENALTY  # noqa: E402
 
-GRAPH = "data/mexico_city_graph_faz4.graphml"
+# Bolge tanimlari — her bolge kendi faz4 grafi ve senaryolariyla gelir.
+# Kahramanmaras senaryosu: 2388129147 -> 10617812226, referans 1593 m, hasarli 2068 m (+475 m)
+BOLGE_TANIM = {
+    "mexico": {
+        "graph": "data/mexico_city_graph_faz4.graphml",
+        "senaryolar": [
+            ("IZOLASYON", 6184109963, 1860819095,
+             "Cikmaz sokak adasina disaridan erisim. Hedef kavsagin UC KOLU DA "
+             "hasarli (0.638/0.697/0.677); esik 0.638'in altina inince ada tamamen "
+             "izole olur. Bu senaryo CLOSED mekanizmasini sinar."),
+            ("SAPMA", 8339935731, 292423735,
+             "Calle Los Mendoza (skor 0.759) uzerinden gecen rota, alternatif mevcut. "
+             "Bu senaryo DIFFICULT mekanizmasini sinar: kenar kapali olmasa bile "
+             "ceza carpani (DIFFICULT_PENALTY) nedeniyle A* alternatife sapar."),
+        ],
+    },
+    "kahramanmaras": {
+        "graph": "data/graph_turkoglu_faz4.graphml",
+        "senaryolar": [
+            ("SAPMA_KM", 2388129147, 10617812226,
+             "Turkoglu/Kahramanmaras — EMSR648 AOI17 gercek hasar verisi. "
+             "Referans rota 1593 m; hasarli grafta 2068 m (+475 m). "
+             "28 closed, 164 difficult kenar. Mexico City'nin ~10 kati etki. "
+             "Bu senaryo Faz 4'un gercek hedef bolgede calistigini kanitlar."),
+        ],
+    },
+}
+VARSAYILAN_BOLGE = "mexico"
+GRAPH = BOLGE_TANIM[VARSAYILAN_BOLGE]["graph"]
+SENARYOLAR = BOLGE_TANIM[VARSAYILAN_BOLGE]["senaryolar"]
 T_CLOSED = 0.50
 T_DIFF = 0.20
 
 # Test senaryosu: bir yerlesim adasina disaridan erisim.
-# Hedef kavsagin UC KOLU DA hasarli (0.638 / 0.697 / 0.677), yani esik
-# 0.638'in altina inince ada tamamen izole oluyor. Bu, deprem sonrasi
-# gercek bir olgudur: izgara planda bir sokak kapanirsa arac dolanir,
-# cikmaz sokak adasinda tek baglanti kapanirsa iceridekiler izole olur.
-SENARYOLAR = [
-    # (ad, baslangic, hedef, aciklama)
-    ("IZOLASYON", 6184109963, 1860819095,
-     "Cikmaz sokak adasina disaridan erisim. Hedef kavsagin UC KOLU DA "
-     "hasarli (0.638/0.697/0.677); esik 0.638'in altina inince ada tamamen "
-     "izole olur. Izgara planda bir sokak kapanirsa arac dolanir, cikmaz "
-     "sokak adasinda tek baglanti kapanirsa iceridekiler erisilemez hale "
-     "gelir. Bu senaryo CLOSED mekanizmasini sinar."),
-    ("SAPMA", 8339935731, 292423735,
-     "Calle Los Mendoza (skor 0.759) uzerinden gecen rota, ancak bolge "
-     "bagi antili (1500 m icinde 239 dugum) ve alternatif mevcut. Bu senaryo "
-     "DIFFICULT mekanizmasini sinar: kenar kapali olmasa bile ceza carpani "
-     "(DIFFICULT_PENALTY) nedeniyle A* alternatife sapar."),
-]
 
 
 def etiketle(G, t_diff, t_closed):
@@ -140,10 +151,17 @@ def main():
     ap.add_argument("--t-diff", type=float, default=T_DIFF)
     ap.add_argument("--tara", action="store_true",
                     help="duyarlilik analizi: bircok esikle calistir")
+    ap.add_argument("--bolge", choices=list(BOLGE_TANIM.keys()),
+                    default=VARSAYILAN_BOLGE,
+                    help="hangi bolge verisiyle calis (varsayilan: mexico)")
     args = ap.parse_args()
 
-    print(f"[graf] {GRAPH}")
-    G = ox.load_graphml(GRAPH)
+    graf_yolu = BOLGE_TANIM[args.bolge]["graph"]
+    senaryolar = BOLGE_TANIM[args.bolge]["senaryolar"]
+
+    print(f"[bolge] {args.bolge}")
+    print(f"[graf]  {graf_yolu}")
+    G = ox.load_graphml(graf_yolu)
     print(f"       {G.number_of_edges()} kenar\n")
 
     if args.tara:
@@ -159,7 +177,7 @@ def main():
     else:
         ciftler = [(args.t_diff, args.t_closed)]
 
-    for ad, A, B, aciklama in SENARYOLAR:
+    for ad, A, B, aciklama in senaryolar:
         print(f"\n{'=' * 68}")
         print(f"SENARYO: {ad}   ({A} -> {B})")
         print(f"{'=' * 68}")
