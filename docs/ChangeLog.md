@@ -6,6 +6,94 @@
 
 ---
 
+## [Faz 4 — duyarlılık analizi ve çok bölge desteği] — 2026-08-19
+
+### A — Kahramanmaraş R duyarlılık analizi
+
+**Amaç:** R parametresi (moloz yayılma mesafesi, 25 m olarak seçilmişti) sonucu ne
+kadar etkiliyor? Jüri "neden 25 m, neden 30 değil?" diye sorduğunda sayısal cevap
+verebilmek için.
+
+**Nasıl:** `phase4_damage_pressure.py`'ye `--bolge` parametresi eklendi. Bu aynı
+zamanda scripti Mexico City'ye sabit bağlılıktan kurtardı — artık iki bölge
+arasında geçiş yapılabiliyor. Kahramanmaraş için UTM 37N (EPSG:32637), Mexico City
+için UTM 14N (EPSG:32614) otomatik seçiliyor; yanlış CRS mesafeleri bozardı.
+
+**Geriye dönük uyumluluk:** Diğer scriptler (`phase4_apply_to_graph`,
+`phase4_route_compare`, `phase4_verify_buildings`) modül seviyesindeki `GRAPH`,
+`DAMAGE_CSV`, `METRIC_CRS` değişkenlerini import ediyordu. Bunlar silinmedi —
+varsayılan bölgenin (mexico) değerleri aynı adlara atandı, hiçbir script kırılmadı.
+
+**Sonuç — Kahramanmaraş (T_CLOSED=0.50, T_DIFF=0.20):**
+
+| R | Etkilenen kenar | Closed | Difficult |
+|---:|---:|---:|---:|
+| 15 m | 242 (%6.5) | 18 | 49 |
+| **25 m** | **314 (%8.5)** | **28** | **136** |
+| 40 m | 375 (%10.1) | 51 | 155 |
+
+R=25 seçiminin gerekçesi: 15 m'de `destroyed` binalar yeterli baskı üretemiyor,
+40 m fiziksel olarak ancak 12+ katlı binalar için savunulabilir (bu setteki medyan
+taban alanı küçük). 25 m, tipik 3-6 katlı yapı stoku için devrilen duvar
+yayılma mesafesiyle uyumlu.
+
+**Mexico City ile karşılaştırma:**
+
+| R | MX closed | KM closed | Oran |
+|---:|---:|---:|---:|
+| 15 m | 0 | 18 | — |
+| 25 m | 2 | 28 | 14× |
+| 40 m | 8 | 51 | 6× |
+
+Rapor: `reports/phase4_kahramanmaras_duyarlilik.txt`
+
+---
+
+### B — `phase4_route_compare.py` çok bölge desteği
+
+**Amaç:** Kahramanmaraş rota karşılaştırması önceki oturumda tek seferlik bir Python
+komutuyla üretilmişti — tekrarlanabilir değildi. Danışman "Kahramanmaraş sonucunu
+yeniden üret" dediğinde tek komutla yapılabilmeli.
+
+**Nasıl:** Script yeniden yapılandırıldı. `BOLGE_TANIM` sözlüğü hem Mexico City hem
+Kahramanmaraş tanımlarını içeriyor; `--bolge` parametresiyle seçiliyor. Kahramanmaraş
+senaryosu: `2388129147 → 10617812226` (referans 1593 m, hasarlı 2068 m, +475 m).
+
+**Önemli bulgu — Mexico City ile yapısal fark:**
+
+Mexico City'de max `damage_pressure` skoru **0.759**'du. 0.80 eşiğinde hiçbir kenar
+kapalı kalmıyordu — kontrol satırı referansa dönüyordu. Kahramanmaraş'ta max skor
+**1.000**; 0.80 eşiğinde bile 6 kenar kapalı kalıyor.
+
+Bu, transfer varsayımının (K-17) önemini somutlaştırıyor: Mexico City geliştirme
+zemini olarak kullanıldı çünkü deprem davranışı benzer, ama hasar yoğunluğu çok
+farklı. Eşiklerin Kahramanmaraş'a özgü kalibrasyonu bu yüzden açık iş olarak
+kaydedildi (K-19).
+
+**Duyarlılık tablosu — Kahramanmaraş:**
+
+| T_DIFF / T_CLOSED | Closed | Difficult | Sonuç |
+|---|---:|---:|---|
+| 0.05 / 0.30 | 102 | 178 | +475 m SAPTI |
+| 0.20 / 0.50 | 28 | 138 | +475 m SAPTI |
+| 0.30 / 0.70 | 16 | 86 | +475 m SAPTI |
+| 0.80 / 0.95 | 6 | 2 | +238 m SAPTI |
+
+Tüm eşiklerde sapma var — Mexico City SAPMA senaryosundan farklı olarak hiçbir
+ayarda "değişmedi" çıkmıyor. Bunun sebebi: Kahramanmaraş'ta hasar yoğun ve geniş
+alana yayılmış, A\*'ın alternatif bulması Mexico City'den çok daha zor.
+
+**Çalıştırma:**
+```
+LC_ALL=C python scripts/phase4_route_compare.py --bolge kahramanmaras --tara
+LC_ALL=C python scripts/phase4_route_compare.py --bolge mexico --tara
+LC_ALL=C python scripts/phase4_route_compare.py  # varsayilan: mexico
+```
+
+Rapor: `reports/phase4_kahramanmaras_rota_duyarlilik.txt`
+
+---
+
 ## [Faz 4 — doğrulama, kararlar, Kahramanmaraş transferi] — 2026-08-17
 
 ### Artçı sarsıntı riski — K-20 (karar bağlandı)
