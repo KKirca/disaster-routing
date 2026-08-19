@@ -29,9 +29,29 @@ import osmnx as ox
 import pandas as pd
 from shapely import wkt
 
-GRAPH = "data/mexico_city_graph.graphml"
-DAMAGE_CSV = "data/damage/mexico-earthquake_xbd_gt.csv"
-METRIC_CRS = "EPSG:32614"
+# Bolge tanimlari. Her bolge kendi grafi, hasar CSV'si ve metrik CRS'iyle gelir.
+# Metrik CRS onemli: mesafe/alan hesaplari icin dogru UTM dilimi gerekir
+# (Mexico City UTM 14N, Kahramanmaras UTM 37N). Yanlis CRS mesafeleri bozar.
+BOLGELER = {
+    "mexico": {
+        "graph": "data/mexico_city_graph.graphml",
+        "csv":   "data/damage/mexico-earthquake_xbd_gt.csv",
+        "crs":   "EPSG:32614",   # UTM 14N
+    },
+    "kahramanmaras": {
+        "graph": "data/graph_turkoglu.graphml",
+        "csv":   "data/damage/kahramanmaras_emsr648.csv",
+        "crs":   "EPSG:32637",   # UTM 37N
+    },
+}
+VARSAYILAN_BOLGE = "mexico"
+
+# Geriye donuk uyumluluk: diger scriptler bu uc degiskeni import ediyor
+# (phase4_apply_to_graph, phase4_route_compare, phase4_verify_buildings).
+# Varsayilan bolgenin degerleri eski adlara atanir ki o scriptler kirilmasin.
+GRAPH = BOLGELER[VARSAYILAN_BOLGE]["graph"]
+DAMAGE_CSV = BOLGELER[VARSAYILAN_BOLGE]["csv"]
+METRIC_CRS = BOLGELER[VARSAYILAN_BOLGE]["crs"]
 
 SINIF_AGIRLIK = {
     "destroyed": 1.00,
@@ -114,9 +134,9 @@ def rapor(skorlar, edges, R, n_edge):
     for lo, hi in zip(kenarlar[:-1], kenarlar[1:]):
         n = int(((vals >= lo) & (vals < hi)).sum())
         print(f"  {lo:.1f}-{hi:.1f}  {n:5d}  {'#' * min(n, 50)}")
-    kapali = int((vals >= 0.70).sum())
-    zor = int(((vals >= 0.30) & (vals < 0.70)).sum())
-    print("\n  --- K-15 yer tutucu esikleriyle (0.30 / 0.70) ---")
+    kapali = int((vals >= 0.50).sum())
+    zor = int(((vals >= 0.20) & (vals < 0.50)).sum())
+    print("\n  --- T_CLOSED=0.50 / T_DIFF=0.20 ---")
     print(f"  closed    : {kapali}")
     print(f"  difficult : {zor}")
     print("\n  --- en yuksek 8 kenar ---")
@@ -129,25 +149,35 @@ def rapor(skorlar, edges, R, n_edge):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--R", type=float, nargs="+", default=[25.0])
+    ap.add_argument("--R", type=float, nargs="+", default=[25.0],
+                    help="moloz yayilma mesafesi (m), birden fazla deger verilebilir")
+    ap.add_argument("--bolge", choices=list(BOLGELER.keys()),
+                    default=VARSAYILAN_BOLGE,
+                    help="hangi bolge verisiyle calis (varsayilan: mexico)")
     args = ap.parse_args()
 
-    print(f"[graf] {GRAPH}")
-    G = ox.load_graphml(GRAPH)
-    _, edges = ox.graph_to_gdfs(G)
-    edges = edges.to_crs(METRIC_CRS).reset_index()
-    print(f"       {len(edges)} kenar")
+    bolge = BOLGELER[args.bolge]
+    graf_yolu  = bolge["graph"]
+    csv_yolu   = bolge["csv"]
+    metric_crs = bolge["crs"]
 
-    df = pd.read_csv(DAMAGE_CSV)
+    print(f"[bolge] {args.bolge}")
+    print(f"[graf]  {graf_yolu}")
+    G = ox.load_graphml(graf_yolu)
+    _, edges = ox.graph_to_gdfs(G)
+    edges = edges.to_crs(metric_crs).reset_index()
+    print(f"        {len(edges)} kenar")
+
+    df = pd.read_csv(csv_yolu)
     etkili = df[df.damage_class.isin(SINIF_AGIRLIK) &
                 (df.damage_class != "no-damage")].copy()
-    print(f"[bina] {len(df)} toplam, {len(etkili)} etkili")
+    print(f"[bina]  {len(df)} toplam, {len(etkili)} etkili")
 
     bld = gpd.GeoDataFrame(
         etkili,
         geometry=etkili.footprint_wkt.apply(wkt.loads),
         crs="EPSG:4326",
-    ).to_crs(METRIC_CRS)
+    ).to_crs(metric_crs)
 
     for R in args.R:
         rapor(hesapla(edges, bld, R), edges, R, len(edges))
