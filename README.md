@@ -35,7 +35,7 @@ sadece `traversability` etiketinin kaynağı değişir.
 - [x] **Faz 4** — Köprü katmanı *(mexico-earthquake üzerinde; Kahramanmaraş transferi açık)*
   - [x] `damage_pressure` skoru (K-19) — bina hasarı → yol maliyeti
   - [x] Rota doğrulaması: SAPMA (+44 m) ve IZOLASYON (`NetworkXNoPath`) senaryoları
-  - [ ] 20 ağır hasarlı binanın görsel doğrulaması (uzman muhakemesi referansı)
+  - [x] 20 ağır hasarlı binanın görsel doğrulaması (uzman muhakemesi referansı — 12/19 uyumlu, 7 ayrışma; karar: yol yüzeyinde görünür fiziksel engel)
   - [ ] Kahramanmaraş'a transfer — eşikler ve `R` yeniden bakılacak
 - [ ] **Faz 5** — Kademe 2: yol yüzeyi segmentasyonu
 - [ ] **Faz 6** — Kalibrasyon ve uçtan uca değerlendirme
