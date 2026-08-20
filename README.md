@@ -36,7 +36,7 @@ sadece `traversability` etiketinin kaynağı değişir.
   - [x] `damage_pressure` skoru (K-19) — bina hasarı → yol maliyeti
   - [x] Rota doğrulaması: SAPMA (+44 m) ve IZOLASYON (`NetworkXNoPath`) senaryoları
   - [x] 20 ağır hasarlı binanın görsel doğrulaması (uzman muhakemesi referansı — 12/19 uyumlu, 7 ayrışma; karar: yol yüzeyinde görünür fiziksel engel)
-  - [ ] Kahramanmaraş'a transfer — eşikler ve `R` yeniden bakılacak
+  - [x] Kahramanmaraş'a transfer — EMSR648 AOI17, R=15/25/40 duyarlilik analizi yapildi (+475 m sapma gosterildi); esik kalibrasyonu saha verisi bekleniyor (K-19)
 - [ ] **Faz 5** — Kademe 2: yol yüzeyi segmentasyonu
 - [ ] **Faz 6** — Kalibrasyon ve uçtan uca değerlendirme
 
