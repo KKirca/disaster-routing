@@ -6,6 +6,143 @@
 
 ---
 
+## [Faz 4 — çok bölge desteği, Faz 1 eşik revizyonu, birleşik koşu] — 2026-08-20
+
+### 4 — GPU teyidi
+
+**Amaç:** Siamese CNN eğitimi için GPU gerekli. Meyusun'un makinesi bilinmiyor ama
+Kuzey'in makinesi teyit edildi.
+
+**Sonuç:** NVIDIA RTX 5000 Ada Generation, 16 GB VRAM, CUDA 13.0. Siamese CNN
+eğitimi için yeterli — kappa turu bitince model eğitimi Meyusun'u beklemeye gerek
+kalmadan Kuzey'in makinesinde de başlatılabilir.
+
+`Kararlar.md` açık konular bölümüne not düşüldü.
+
+---
+
+### 5 — `phase4_visualize.py` çok bölge desteği
+
+**Neden:** `phase4_visualize.py` Mexico City senaryolarına sabit bağlıydı. Kahramanmaraş
+rota karşılaştırması önceki oturumda tek seferlik bir komutla üretilmişti — tekrarlanabilir
+değildi. Danışman "Kahramanmaraş görselini yeniden üret" dediğinde tek komutla
+yapılabilmeli.
+
+**Ne yapıldı:** Script `phase4_route_compare.py`'deki `BOLGE_TANIM` sözlüğünü
+kullanacak şekilde yeniden yapılandırıldı. `--bolge` parametresiyle iki bölge arasında
+geçiş yapılıyor. Mexico City için EPSG:32614 (UTM 14N), Kahramanmaraş için EPSG:32637
+(UTM 37N) otomatik seçiliyor — yanlış CRS mesafeleri bozardı.
+
+**Geriye dönük uyumluluk:** Parametresiz çalıştırınca Mexico City varsayılan, eski
+davranış korundu.
+
+**Çalıştırma:**
+```
+LC_ALL=C python scripts/phase4_visualize.py                    # Mexico City
+LC_ALL=C python scripts/phase4_visualize.py --bolge kahramanmaras
+```
+
+**Üretilen görsel:** `outputs/phase4_sapma_km.png` — sol: 1593 m temiz rota,
+sağ: 2068 m hasarlı rota (+475 m), kırmızı kenarlar şehir merkezinde yoğun.
+
+---
+
+### K-22 — Likefaksiyon eşiği 0.05'ten 0.10'a revize edildi
+
+**Neden değiştirildi:**
+Zhu 2017 modelinin bu bölgedeki veri aralığı 0–0.394. 0.05 eşiğinde grafın %34.9'u
+(1292/3700 kenar) `difficult` oluyordu — Türkoğlu'nun üçte biri likefaksiyon riski
+altında görünüyordu.
+
+Bu fiziksel olarak savunulamazdı. Likefaksiyon için üç koşul aynı anda gerekli:
+gevşek ve suya doygun zemin (jeoloji), yeterince yüksek sarsıntı (faya yakınlık).
+Düşük olasılıklı hücreler bu koşulun tam sağlanmadığı alanları temsil eder — bu
+alanları `difficult` saymak sistemi gereğinden karamsar yapar.
+
+**Ayrıca:** Likefaksiyon fay hattıyla doğrudan örtüşmez. Fay yakınlığı sarsıntıyı
+artırır (riski artırır) ama jeoloji uygun değilse sarsıntı ne kadar güçlü olursa
+olsun likefaksiyon gerçekleşmez. Bu yüzden rüptür katmanı (geometrik, `closed`) ve
+likefaksiyon katmanı (jeoteknik model, `difficult`) ayrı tutulur.
+
+**Duyarlılık tablosu:**
+
+| Eşik | Riskli hücre | Difficult kenar | Oran |
+|---:|---:|---:|---:|
+| 0.05 | 305 | 1292 | %34.9 |
+| 0.08 | 287 | 1123 | %30.4 |
+| **0.10** | **273** | **929** | **%25.1** |
+| 0.12 | 258 | 862 | %23.3 |
+| 0.15 | 239 | 757 | %20.5 |
+| 0.20 | 197 | 515 | %13.9 |
+
+**Neden 0.10:** Deprem mühendisliğinde likefaksiyon riski tipik olarak %10-20 olasılık
+üzerinde "anlamlı" sayılır. 0.10, bu setteki orta-yüksek riski yakalayan en düşük
+savunulabilir eşiktir. K-16'nın konservatif ilkesiyle uyumlu.
+
+**Doğrulama:** `verify_phase1.py` — 12/12 test geçti. Değişiklik hiçbir Faz 1
+sözleşmesini bozmadı.
+
+**Etkilenen dosyalar:** `scripts/phase1_liquefaction1.py`, `scripts/turkoglu_four_layers.py`
+
+---
+
+### 6 — Faz 1 + Faz 4 birleşik koşu (`phase4_integrated_run.py`)
+
+**Neden var:**
+Proje üç bağımsız hazard kaynağını birleştiriyor:
+- **Faz 1a:** Jeofizik — USGS fay rüptürü vektörü → `closed`
+- **Faz 1b:** Jeoteknik — Zhu 2017 likefaksiyon olasılık rasteri → `difficult`
+- **Faz 4:** Uzaktan algılama — uydu görüntüsünden bina hasarı → `damage_pressure`
+
+K-16 kararı "en kısıtlayıcı etiket kazanır" diyordu: Faz 4, Faz 1'in yazdığı
+etiketi ezememeli. Ama bu hiç gerçek veriyle test edilmemişti.
+
+**Teknik sorun:** `graph_turkoglu.graphml` ham OSM grafı — `traversability` özniteliği
+içermiyor. Faz 1 her çalıştırmada sıfırdan hesaplanıp A*'a geçiriliyor, kalıcı
+olarak yazılmıyor. Bu yüzden birleşik testi kurmak için Faz 1'i önce çalıştırıp
+etiketleri uygulamak, sonra Faz 4'ü üstüne bindirmek gerekti.
+
+**Sonuç:**
+
+| Katman | Closed | Difficult |
+|---|---:|---:|
+| Faz 1a (ruptur) | 28 | 0 |
+| Faz 1b (likefaksiyon, eşik=0.10) | 28 | 923 |
+| **Faz 4 ekledi** | **+28** | **+129** |
+| **Birleşik toplam** | **56** | **1052** |
+
+**K-16 GEÇTI:** Faz 1'in 28 `closed` kenarının hiçbiri Faz 4 tarafından
+gevşetilmedi.
+
+**Rota karşılaştırması (A=2388129147, B=10617812226):**
+- Faz 1 tek başına: **1593 m**
+- Faz 1 + Faz 4 birlikte: **2068 m**
+- Faz 4'ün ek katkısı: **+475 m**
+
+Bu tezin en güçlü teknik kanıtı: üç bağımsız hazard kaynağı tek bir tutarlı rota
+planına dönüşüyor ve hiçbiri diğerini ezip daha az kısıtlayıcı hale getiremiyor.
+
+**Çalıştırma:**
+```
+LC_ALL=C python scripts/phase4_integrated_run.py
+```
+
+---
+
+### Bugün kapanan açık konular
+- GPU durumu teyit edildi
+- Likefaksiyon eşiği 0.05 → 0.10 (K-22)
+- `phase4_visualize.py` çok bölge desteği
+- Faz 1 + Faz 4 birleşik koşu doğrulandı
+
+### Hâlâ açık
+- Meyusun'un kappa turu (Faz 2c kapısı, κ ≥ 0.60)
+- Faz 3 (Siamese CNN) — kappa sonrası
+- Spatial CV fold dengesizliği — model tarafı
+- Nokta/blok granülerlik farkı (model bina bazında, EMSR648 blok bazında)
+
+---
+
 ## [Faz 4 — duyarlılık analizi ve çok bölge desteği] — 2026-08-19
 
 ### A — Kahramanmaraş R duyarlılık analizi
