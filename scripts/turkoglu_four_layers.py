@@ -37,7 +37,7 @@ except ImportError:
     from phase1_liquefaction import load_liquefaction_polygons, apply_liquefaction
 
 UTM = 32637
-THRESHOLD = 0.05          # likefaksiyon esigi
+THRESHOLD = 0.10          # likefaksiyon esigi (K-22: 0.05'ten revize)
 NEAR_M = 30               # "yola komsu" sayilma mesafesi (metre)
 OUT = "outputs/turkoglu_four_layers.png"
 

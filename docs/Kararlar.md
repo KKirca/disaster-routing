@@ -469,10 +469,50 @@ Kahramanmaraş koşusunda devreye girmez. Formül çalışır ama bir bileşeni 
 
 ---
 
+## K-22 · Likefaksiyon eşiği 0.05'ten 0.10'a revize edildi
+**Karar:** `phase1_liquefaction1.py` ve `turkoglu_four_layers.py` içindeki
+`THRESHOLD` 0.05'ten **0.10'a** yükseltildi.
+
+**Neden değiştirildi:**
+Zhu 2017 modelinin bu bölgedeki veri aralığı 0–0.394'tür. 0.05 eşiğinde grafın
+%34.9'u (1292/3700 kenar) `difficult` oluyordu — Türkoğlu'nun üçte biri likefaksiyon
+riski altında görünüyordu. Bu fiziksel olarak savunulamaz: likefaksiyon için gevşek
+suya doygun zemin + yeterli sarsıntı aynı anda gerekir; düşük olasılıklı hücreler
+bu koşulun tam sağlanmadığı alanları temsil eder.
+
+**Eşik seçimi — duyarlılık tablosu:**
+
+| Eşik | Riskli hücre | Difficult kenar | Oran |
+|---:|---:|---:|---:|
+| 0.05 | 305 | 1292 | %34.9 |
+| 0.08 | 287 | 1123 | %30.4 |
+| **0.10** | **273** | **929** | **%25.1** |
+| 0.12 | 258 | 862 | %23.3 |
+| 0.15 | 239 | 757 | %20.5 |
+| 0.20 | 197 | 515 | %13.9 |
+
+**Neden 0.10:**
+Deprem mühendisliğinde likefaksiyon riski tipik olarak %10-20 olasılık üzerinde
+"anlamlı" sayılır. Veri maksimumu 0.394 olduğu için 0.10, bu setteki orta-yüksek
+riski yakalayan en düşük savunulabilir eşiktir. K-16'nın konservatif ilkesiyle
+uyumlu: ihtiyatlı tarafta kalmak tercih edilir.
+
+0.15 de makul olurdu (%20.5) ancak 0.10 tercih edildi çünkü likefaksiyon, zemin
+çökmesi ve yapısal hasar açısından ciddi bir risk — ihtiyatlı tarafta kalmak
+K-16 ilkesiyle tutarlı.
+
+**Likefaksiyon ≠ fay hattı yakınlığı:**
+Fay yakınlığı sarsıntıyı artırır (dolayısıyla riski artırır), ancak likefaksiyon
+için zemin tipi ve yeraltı suyu da gerekli. Rüptür katmanı (fay geometrisine dayalı,
+`closed` üretir) ve likefaksiyon katmanı (Zhu modelinden, `difficult` üretir) bu
+yüzden ayrı tutulur.
+
+**Doğrulama:** `verify_phase1.py` — 12/12 test geçti.
+
+---
+
 ## Açık konular (henüz karara bağlanmadı)
 
-- Likefaksiyon eşiği `THRESHOLD = 0.05` fazla geniş — grafın yarısını
-  `difficult` yapıyor. `0.1`–`0.15` denenecek.
 - Spatial CV fold'ları hasar açısından dengesiz (fold 3: 8431, fold 1: 3194).
   Dengeli atama (bin-packing) yapılabilir.
 - 516 karo binasız olduğu için koordinatsız kaldı, fold'a atanamadı.

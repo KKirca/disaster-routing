@@ -37,7 +37,11 @@ from phase1_rupture_real import load_graph, load_rupture, apply_rupture, CENTER,
 
 # Likefaksiyon esigi. Veri araligi 0–0.42 idi; 0.05 orta+yuksek riski yakalar.
 # 0 poligon cikarsa DUSUR, cok genis alan cikarsa YUKSELT.
-THRESHOLD = 0.05
+THRESHOLD = 0.10  # K-22: 0.05'ten 0.10'a revize edildi.
+# Veri araligi 0-0.394; 0.05 grafin %34.9'unu difficult yapiyordu (fazla genis).
+# 0.10 ile %25.1'e dusuyor — orta+yuksek riski yakalayip dusuk riski disarda birakir.
+# Likefaksiyon fizigi: gevşek+suya_doygun zemin + yeterli sarsinti gerektirir;
+# dusuk olasilikli hucreler bu kosulun tam saglanmadigi alanlari temsil eder.
 
 OUT = "outputs/route_kademe1.png"
 
