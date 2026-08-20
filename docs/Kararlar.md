@@ -518,4 +518,4 @@ yüzden ayrı tutulur.
 - 516 karo binasız olduğu için koordinatsız kaldı, fold'a atanamadı.
 - Nokta/blok granülerlik farkı: model bina bazında çıktı verecek, EMSR648
   blok bazında. Karşılaştırma yöntemi netleşmedi.
-- GPU durumu teyit edilmedi (Siamese CNN eğitimi için gerekli).
+- GPU durumu teyit edildi (2026-08-20): Kuzey'in makinesi NVIDIA RTX 5000 Ada, 16 GB VRAM, CUDA 13.0. Siamese CNN egitimi icin yeterli. Meyusun'un makinesi ayrica teyit edilmedi.

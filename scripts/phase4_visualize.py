@@ -25,13 +25,15 @@ from matplotlib.lines import Line2D
 from shapely import wkt
 
 sys.path.insert(0, "scripts")
-from phase4_route_compare import GRAPH, SENARYOLAR, T_CLOSED, T_DIFF
+from phase4_route_compare import BOLGE_TANIM, VARSAYILAN_BOLGE, T_CLOSED, T_DIFF
+GRAPH    = BOLGE_TANIM[VARSAYILAN_BOLGE]["graph"]
+SENARYOLAR = BOLGE_TANIM[VARSAYILAN_BOLGE]["senaryolar"]
 from phase4_route_compare import etiketle, rota
 from phase4_damage_pressure import DAMAGE_CSV
 
 OUT_DIR = "outputs"
 MARJ = 350.0
-METRIC = "EPSG:32614"
+# METRIC artik bolgeden geliyor — her bolgenin CRS farklı olabilir
 
 
 def cerceve(edges_m, yollar, marj=MARJ):
@@ -83,14 +85,23 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--t-closed", type=float, default=T_CLOSED)
     ap.add_argument("--t-diff", type=float, default=T_DIFF)
+    ap.add_argument("--bolge", choices=list(BOLGE_TANIM.keys()),
+                    default=VARSAYILAN_BOLGE,
+                    help="hangi bolge verisiyle calis (varsayilan: mexico)")
     args = ap.parse_args()
 
+    bolge    = BOLGE_TANIM[args.bolge]
+    graf_yolu   = bolge["graph"]
+    senaryolar  = bolge["senaryolar"]
+    metric_crs  = bolge.get("crs", "EPSG:32614")
+
     os.makedirs(OUT_DIR, exist_ok=True)
-    print("[graf]", GRAPH)
-    G = ox.load_graphml(GRAPH)
+    print("[bolge]", args.bolge)
+    print("[graf] ", graf_yolu)
+    G = ox.load_graphml(graf_yolu)
 
     _, edges = ox.graph_to_gdfs(G)
-    edges = edges.to_crs(METRIC).reset_index()
+    edges = edges.to_crs(metric_crs).reset_index()
     edges["dp"] = [float(x) for x in edges["damage_pressure"]]
     print("      ", len(edges), "kenar,",
           int((edges.dp > 0).sum()), "hasarli")
@@ -99,9 +110,9 @@ def main():
     hv = df[df.damage_class.isin(["major-damage", "destroyed"])]
     bld = gpd.GeoDataFrame(
         hv, geometry=hv.footprint_wkt.apply(wkt.loads), crs="EPSG:4326"
-    ).to_crs(METRIC)
+    ).to_crs(metric_crs)
 
-    for ad, A, B, _ in SENARYOLAR:
+    for ad, A, B, _ in senaryolar:
         print("\n[senaryo]", ad)
 
         for _, _, _, d in G.edges(keys=True, data=True):
