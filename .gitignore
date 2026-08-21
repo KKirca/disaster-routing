@@ -27,3 +27,5 @@ data/labeling/annotations_*.json
 # === Faz 4 — Mexico City graf (53-56 MB, script yeniden uretir) ===
 data/mexico_city_graph*.graphml
 data/graph_*_faz4.graphml
+models/
+data/maxar/
