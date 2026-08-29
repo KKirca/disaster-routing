@@ -30,3 +30,6 @@ data/graph_*_faz4.graphml
 models/
 data/maxar/
 data/ebd_turkey/
+data/ebd_turkey_patches/
+data/xbd_patches/
+data/maxar_tiles/

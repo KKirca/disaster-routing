@@ -591,3 +591,34 @@ olabilir.
 altında (aynı şekilde gitignore'da). Kaynak scriptler ve bu karar kalıcı
 kayıt.
 
+
+## K-24 · No-damage recall sorunu — kismen cozuldu, devam ediyor
+**Durum:** Cozulmemis, aktif calisma konusu. Bu bir "karar" degil, acik
+bir muhendislik sorununun ilk mudahale kaydidir.
+
+**Sorun:** Siamese CNN modeli, EARTHQUAKE-TURKEY verisinde (gercek
+Kahramanmaras) saglam binalarin (no-damage) sadece %1.2'sini dogru
+taniyordu — pratikte her binayi hasarli goruyordu.
+
+**Kok neden arastirmasi:** "Ornek azligi" hipotezi test edildi ve
+YANLIS cikti — no-damage EARTHQUAKE-TURKEY'de en buyuk sinif (%97.4).
+Gercek neden: egitimdeki WeightedRandomSampler, ham 1/frekans agirligiyla
+no-damage'i neredeyse hic ornekletmiyordu.
+
+**Denenenler:**
+1. Sampler agirligina tavan (maks_oran=10x) — basarisiz, recall 0.012'den
+   0.003'e dustu (tavan pratikte hicbir seyi sinirlamadi).
+2. Sampler tamamen kaldirildi, sadece Focal Loss birakildi — kismen
+   basarili, recall 0.155'e cikti ama hasar recall'u 0.664'e dustu.
+
+**Neden onemli:** Model her yeri hasarli gorurse Faz 4'e baglaninca
+tum sehir "kapali yol" cikar, rota planlamasi anlamsizlasir. K-16'nin
+"ihtiyatli olmak guvenlidir" ilkesi bunu bir yere kadar tolere eder
+ama %85 yanlis siniflandirma bu esigi asiyor gorunuyor.
+
+**Sirada:** Focal Loss'un alpha agirliginin da (sampler ile ayni mantik,
+1/frekans) yumusatilmasi denenecek. Kabul edilebilir esik kullaniciyla
+netlestirilecek — model Faz 4'e o karardan sonra baglanacak.
+
+---
+

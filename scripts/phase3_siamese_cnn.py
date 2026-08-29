@@ -67,8 +67,8 @@ class XBDDataset(Dataset):
     pre/post: (3, PATCH, PATCH) float32  0-1
     cva     : (1, PATCH, PATCH) float32  0-1 normalize
     """
-    def __init__(self, disaster=None):
-        self.ornekler = []
+    def __init__(self, disaster=None, ek_turkey=False):
+        self.ornekler = []  # (uid, sinif_idx, patch_dir)
         desen = f"{LBL_DIR}/{disaster or '*'}_*_post_disaster.json"
         for lbl_yolu in sorted(glob.glob(desen)):
             karo = os.path.basename(lbl_yolu).replace("_post_disaster.json", "")
@@ -81,13 +81,30 @@ class XBDDataset(Dataset):
             for ft in d["features"]["xy"]:
                 st = ft["properties"].get("subtype", "no-damage")
                 if st not in SINIF_IDX:
-                    continue  # un-classified atla
+                    continue
                 uid = ft["properties"]["uid"]
-                self.ornekler.append((uid, SINIF_IDX[st]))
+                self.ornekler.append((uid, SINIF_IDX[st], "data/xbd_patches"))
+        print(f"[veri] xBD: {len(self.ornekler)} ornek")
 
-        print(f"[veri] {len(self.ornekler)} ornek yuklendi")
+        if ek_turkey:
+            tr_csv = "data/ebd_turkey_patches/etiketler.csv"
+            if os.path.exists(tr_csv):
+                import csv as csv_modul
+                n_once = len(self.ornekler)
+                with open(tr_csv) as f:
+                    for row in csv_modul.DictReader(f):
+                        uid, sinif = row["uid"], row["sinif"]
+                        if sinif not in SINIF_IDX:
+                            continue
+                        self.ornekler.append(
+                            (uid, SINIF_IDX[sinif], "data/ebd_turkey_patches"))
+                print(f"[veri] EARTHQUAKE-TURKEY: {len(self.ornekler)-n_once} ornek eklendi")
+            else:
+                print(f"[uyari] {tr_csv} bulunamadi")
+
+        print(f"[veri] toplam {len(self.ornekler)} ornek yuklendi")
         from collections import Counter
-        sayac = Counter(s for *_, s in self.ornekler)
+        sayac = Counter(sinif for _, sinif, _ in self.ornekler)
         for i, ad in enumerate(SINIFLAR):
             print(f"  {sayac[i]:6d}  {ad}")
 
@@ -95,8 +112,7 @@ class XBDDataset(Dataset):
         return len(self.ornekler)
 
     def __getitem__(self, idx):
-        uid, sinif = self.ornekler[idx]
-        patch_dir = "data/xbd_patches"
+        uid, sinif, patch_dir = self.ornekler[idx]
         pre_p  = np.load(f"{patch_dir}/{uid}_pre.npy")
         post_p = np.load(f"{patch_dir}/{uid}_post.npy")
         cva_p  = np.load(f"{patch_dir}/{uid}_cva.npy")
@@ -193,12 +209,21 @@ class FocalLoss(nn.Module):
         return ((1 - pt) ** self.gamma * ce).mean()
 
 
-def agirlikli_ornekleyici(dataset):
-    """Sinif dengesizligini gidermek icin WeightedRandomSampler."""
+def agirlikli_ornekleyici(dataset, maks_oran=10.0):
+    """
+    Sinif dengesizligini gidermek icin WeightedRandomSampler.
+
+    DUZELTME: ham 1/frekans agirligi asiri agresifti — no-damage (133k ornek)
+    neredeyse hic secilmiyordu, model no-damage recall 0.012ye dustu (K-23
+    sonrasi Turkiye verisiyle degerlendirmede bulundu). Agirliklar en buyuk/
+    en kucuk agirlik orani maks_oran ile sinirlanarak yumusatildi.
+    """
     from collections import Counter
-    sayac = Counter(s for *_, s in dataset.ornekler)
-    sinif_agirlik = {s: 1.0 / sayac[s] for s in sayac}
-    ornek_agirlik = [sinif_agirlik[s] for *_, s in dataset.ornekler]
+    sayac = Counter(sinif for _, sinif, _ in dataset.ornekler)
+    ham_agirlik = {s: 1.0 / sayac[s] for s in sayac}
+    tavan = min(ham_agirlik.values()) * maks_oran
+    sinif_agirlik = {s: min(w, tavan) for s, w in ham_agirlik.items()}
+    ornek_agirlik = [sinif_agirlik[sinif] for _, sinif, _ in dataset.ornekler]
     return WeightedRandomSampler(ornek_agirlik, len(ornek_agirlik))
 
 
@@ -256,6 +281,8 @@ def main():
     ap.add_argument("--resume",   action="store_true",
                     help="en son checkpoint'ten devam et")
     ap.add_argument("--workers",  type=int, default=4)
+    ap.add_argument("--ek-turkey", dest="ek_turkey", action="store_true",
+                    help="K-23: EARTHQUAKE-TURKEY (EBD) verisini de ekle")
     args = ap.parse_args()
 
     os.makedirs(MODEL_DIR, exist_ok=True)
@@ -264,7 +291,7 @@ def main():
 
     # Veri
     print("\n[veri yukleniyor...]")
-    dataset = XBDDataset(disaster=args.disaster)
+    dataset = XBDDataset(disaster=args.disaster, ek_turkey=args.ek_turkey)
     n_val   = max(1, int(len(dataset) * 0.15))
     n_train = len(dataset) - n_val
     train_ds, val_ds = torch.utils.data.random_split(
@@ -280,9 +307,12 @@ def main():
         def __getitem__(self, i): return self.subset[i]
 
     train_wrap = SubsetWrapper(train_ds)
-    sampler    = agirlikli_ornekleyici(train_wrap)
+    # DUZELTME v2: WeightedRandomSampler (agirlik tavaniyla bile) no-damage
+    # recall'unu 0.003e dusurdu — Focal Loss zaten dengesizlige karsi
+    # calisiyor, sampler onunla birlikte asiri agresif oluyor. Sampler
+    # tamamen kaldirildi, normal shuffle=True kullanildi.
     train_loader = DataLoader(train_wrap, batch_size=args.batch,
-                              sampler=sampler, num_workers=args.workers,
+                              shuffle=True, num_workers=args.workers,
                               pin_memory=True)
     val_loader   = DataLoader(val_ds, batch_size=args.batch,
                               shuffle=False, num_workers=args.workers,
@@ -295,7 +325,7 @@ def main():
 
     # Focal loss — sinif agirliklari ters frekans
     from collections import Counter
-    sayac = Counter(s for *_, s in dataset.ornekler)
+    sayac = Counter(sinif for _, sinif, _ in dataset.ornekler)
     agirlik = torch.tensor(
         [1.0 / sayac.get(i, 1) for i in range(len(SINIFLAR))],
         dtype=torch.float32).to(cihaz)

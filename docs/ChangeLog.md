@@ -41,12 +41,86 @@ scripti yazildi (phase3_preprocess_ebd_turkey.py): maskeden bagli
 bilesen cikarir, merkez bulur, 64x64 patch keser.
 Sonuc: 16.351 gercek Kahramanmaras binasi patch e cevrildi
 (15.931 no-damage, 420 hasarli: 183 minor, 105 major, 132 destroyed).
-### Acik
-- Model henuz bu yeni veriyle resume edilip egitilmedi, sirada.
-- xBD + EARTHQUAKE-TURKEY birlikte veri yukleyicisi yazilacak.
-- Sonra Faz 4 e baglanacak (xbd_gt vs model_v1 karsilastirmasi).
+### Iki veri kaynagi birlestirildi ve model egitildi
+
+XBDDataset sinifi iki kaynagi da okuyacak sekilde guncellendi:
+ornekler artik (uid, sinif, patch_dir) uclusu tutuyor, boylece hem
+data/xbd_patches hem data/ebd_turkey_patches ayni egitim dongusunde
+kullanilabiliyor. --ek-turkey parametresi eklendi.
+
+Ilk denemede bir kazayla karsilasildi: --disaster mexico-earthquake
+--ek-turkey --epochs 1 ile yapilan hizli test kosusu, asil 20 epoch'luk
+xBD egitiminin checkpoint dosyasini (checkpoint_son.pth) uzerine yazdi.
+Bu yuzden --resume epoch 14'ten degil epoch 1'den basladi. Ders:
+test kosulari once checkpoint yedeklenmeden calistirilmamali.
+
+Buna ragmen egitime devam edildi: xBD (159.794) + EARTHQUAKE-TURKEY
+(16.351) = 176.145 ornek, toplam 21 epoch. Sonuc: hasar recall 0.804
+(onceki sadece-xBD modelinden, 0.813'ten, hafif dusuk).
+
+### Kritik bulgu: model Turkiye'de sagliksiz calisiyor (K-24)
+
+Genel hasar recall'u (0.804) yanlis soruyu cevapliyordu, asil soru
+"model Turkiye'de ne kadar iyi" idi. Ayri bir degerlendirme scripti
+yazildi (phase3_eval_turkey.py): sadece EARTHQUAKE-TURKEY verisiyle
+model test edildi.
+
+Sonuc alarm vericiydi: no-damage recall SADECE 0.012. Karisiklik
+matrisinde 15.931 saglam binadan 11.317'si yanlislikla "minor-damage"
+sanilmis. Model pratik olarak her yeri hasarli goruyordu.
+
+**Kok neden arastirmasi:** Once "ornek azligi" hipotezi test edildi
+ve REDDEDILDI, EARTHQUAKE-TURKEY'de no-damage 15.931 ornekle en
+BUYUK sinif (yuzde 97.4), en kucuk degil. Sorun veri azligi degil,
+egitim mekanizmasindaydi.
+
+Gercek neden: WeightedRandomSampler'in ham agirligi (1/frekans)
+no-damage'i (133.357 ornek, xBD+TR toplam) neredeyse hic secmiyordu.
+
+**1. duzeltme denemesi, agirlik tavani (basarisiz):** Sampler agirligina
+maks_oran=10x tavan konuldu. Sonuc: no-damage recall 0.012 -> 0.003,
+DAHA DA KOTULESTI. Sebep: no-damage/hasarli-siniflar orani zaten ~10x
+civarindaydi, tavan pratikte hicbir seyi sinirlamadi.
+
+**2. duzeltme denemesi, sampler tamamen kaldirildi (kismen basarili):**
+WeightedRandomSampler tamamen kaldirildi, DataLoader'a shuffle=True
+verildi, sadece Focal Loss sinif dengesizligiyle basa cikmak icin
+birakildi. Sifirdan 20 epoch yeniden egitildi.
+
+Sonuc: no-damage recall 0.155'e cikti (52 kat iyilesme), ama hasar
+recall Turkiye'de 0.664'e dustu (major-damage ozellikle zayif: 0.362,
+cogu destroyed ile karistiriliyor).
+
+**Degerlendirme:** Sorun kismen cozuldu ama tam degil. Model artik
+tamamen kor degil ama no-damage'in hala yuzde85'i yanlis siniflandiriliyor.
+Kullanicinin sordugu "belki gercekten no-damage ornegi azdir" sorusu
+test edildi ve YANLIS cikti; asil sorun Focal Loss'un alpha
+agirliginin da sampler gibi asiri agresif olmasi olabilir (henuz
+duzeltilmedi).
+
+**Uc model versiyonu diskte yedeklendi (models/ klasorunde,
+gitignore'da, repoya girmiyor):**
+- v1_bozuk_no_damage: agresif sampler, no-damage recall 0.003-0.012
+- v2_sampler_denendi: sampler kaldirildi, no-damage recall 0.155,
+  hasar recall (Turkiye) 0.664, SU ANKI AKTIF MODEL
+- (planlanan v3: Focal Loss alpha'sinin da yumusatilmasi)
+
+### Acik, bu oturumda BITMEDI, devam edecek
+- Focal Loss alpha agirligi sampler ile ayni mantikla (1/frekans)
+  hesaplaniyor, henuz yumusatilmadi. Bir sonraki adim bu.
+- no-damage/hasar recall dengesi icin kabul edilebilir esik henuz
+  netlesmedi, K-16'nin ihtiyatli olmak guvenlidir ilkesiyle ne
+  kadar aski birakilabilecegi kullanici ile netlestirilecek.
+- Model henuz Faz 4'e baglanmadi (xbd_gt vs model_v1 karsilastirmasi
+  hala yapilmadi), once model kalitesi kabul edilebilir seviyeye
+  gelmeli.
+- phase3_siamese_cnn.py, phase3_eval_turkey.py degisiklikleri henuz
+  commit edilmedi (bu girdiyle birlikte commitlenecek).
+
 ### Karara donusenler
-K-23
+K-23, K-24
+
+---
 
 ---
 
