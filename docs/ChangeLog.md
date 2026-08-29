@@ -6,6 +6,50 @@
 
 ---
 
+## [Faz 3 — Siamese CNN egitimi ve gercek Turkiye verisi] — 2026-08-29
+### Model mimarisi ve ilk egitim
+Siamese CNN + CVA mimarisi kuruldu: pre/post goruntu paylasimli encoder dan
+geciyor, CVA (Change Vector Analysis) degisim haritasi ucuncu kanal olarak
+ayri bir encoder ile isleniyor. Focal Loss + agirlikli ornekleme, sinif
+dengesizligine (yuzde72 no-damage) karsi.
+xBD ile 20 epoch egitildi (159.794 ornek). Hasar recall: 0.813
+(CVA baseline: 0.72, +13 puan). En iyi model epoch 14 te. Checkpoint sistemi
+kuruldu (--resume), bilgisayar kapatilsa bile kaldigi yerden devam edilebiliyor.
+### faz3-siamese dali acildi
+Kullanicinin karari: model denemeleri Meyusun donmeden, bagimsiz olarak
+yapilacak. Riskli/deneysel oldugu icin ayri dala tasindi, main dokunulmadi.
+Begenilirse main e merge edilecek, degilse dal silinip bastan baslanacak.
+### Maxar/Turkiye veri arayisi, 4 kaynak denendi, 3u elendi
+Kullanicinin talebi: modelin Faz 4 e baglanmadan once mumkun oldugunca
+Turkiye ye ozgu veriyle gercekten ogrenmis olmasi.
+1. Maxar Open Data, tum 76 koleksiyon tarandi (kesisim testi ile),
+   deprem bolgesinde sadece 1 pre-post cifti bulundu (889 MB, indirildi).
+   En yuksek varyansli alt karolar bile buyuk olcude bulutlu/kirsal cikti,
+   etiketlenemez.
+2. Planet Labs dogrudan, kurumsal basvuru gerektiriyor, kapali.
+3. NASA NIST_Turkiye_Earthquake servisi (Planet 3m), kaldirilmis (404).
+4. NASA Map1 servisi (Sentinel-2, 20m), bina bazli hasar icin cok kaba
+   cozunurluk (bina 1 pikselden kucuk).
+### EARTHQUAKE-TURKEY veri seti bulundu (K-23)
+Akademik literatur taramasi ile EBD koleksiyonu (Wang vd. 2025)
+bulundu, Maxar Open Data dan toplanmis, xBD-onegitilmis model ile
+yari-otomatik etiketlenmis, elle dogrulanmis 12 afetlik bir koleksiyon.
+EARTHQUAKE-TURKEY alt kumesi: 944 karo, gercek Kahramanmaras
+pre/post cifti, CC BY 4.0 lisansli, figshare den indirildi (889 MB).
+Format xBD den farkli, poligon degil piksel maskesi. Yeni bir on isleme
+scripti yazildi (phase3_preprocess_ebd_turkey.py): maskeden bagli
+bilesen cikarir, merkez bulur, 64x64 patch keser.
+Sonuc: 16.351 gercek Kahramanmaras binasi patch e cevrildi
+(15.931 no-damage, 420 hasarli: 183 minor, 105 major, 132 destroyed).
+### Acik
+- Model henuz bu yeni veriyle resume edilip egitilmedi, sirada.
+- xBD + EARTHQUAKE-TURKEY birlikte veri yukleyicisi yazilacak.
+- Sonra Faz 4 e baglanacak (xbd_gt vs model_v1 karsilastirmasi).
+### Karara donusenler
+K-23
+
+---
+
 ## [Faz 4 — çok bölge desteği, Faz 1 eşik revizyonu, birleşik koşu] — 2026-08-20
 
 ### 4 — GPU teyidi

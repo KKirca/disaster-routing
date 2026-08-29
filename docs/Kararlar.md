@@ -519,3 +519,75 @@ yüzden ayrı tutulur.
 - Nokta/blok granülerlik farkı: model bina bazında çıktı verecek, EMSR648
   blok bazında. Karşılaştırma yöntemi netleşmedi.
 - GPU durumu teyit edildi (2026-08-20): Kuzey'in makinesi NVIDIA RTX 5000 Ada, 16 GB VRAM, CUDA 13.0. Siamese CNN egitimi icin yeterli. Meyusun'un makinesi ayrica teyit edilmedi.
+
+## K-23 · EARTHQUAKE-TURKEY veri seti (EBD koleksiyonu) modele eklendi
+**Karar:** Siamese CNN'in xBD ile eğitimine, gerçek Kahramanmaraş deprem verisi
+içeren "EARTHQUAKE-TURKEY" alt kümesi eklendi.
+
+**Kaynak:** Extensible Building Damage (EBD) koleksiyonu (Wang vd., 2025).
+- DOI: https://doi.org/10.6084/m9.figshare.25285009
+- Yayın: "Constructing an Extensible Building Damage Dataset via
+  Semi-supervised Fine-Tuning across 12 Natural Disasters"
+- Lisans: CC BY 4.0 (akademik ve ticari kullanıma açık, atıf şartıyla)
+- Barındırma: figshare
+
+**EBD koleksiyonu nedir:** xBD'de bulunmayan 12 afet olayından oluşan,
+18.000+ görüntü çifti ve 175.000+ bina içeren bir ek veri seti. Ham
+görüntüler Maxar Open Data programından toplanmış; önce xBD ile
+ön-eğitilmiş bir model ile otomatik etiketlenmiş, sonra elle son
+kontrolden geçirilmiş (yarı-denetimli etiketleme + manuel doğrulama).
+
+**Bizim kullandığımız alt küme — EARTHQUAKE-TURKEY:**
+- 6 Şubat 2023 Kahramanmaraş depremi, gerçek pre/post görüntü çiftleri
+- 944 karo, 512×512 RGB
+- Format: xBD'den farklı — poligon değil, PİKSEL MASKESİ
+  (0=arka plan, 1=no-damage, 2=minor-damage, 3=major-damage, 4=destroyed)
+- Dosya adı: `EARTHQUAKE-TURKEY_{id}_{pre/post}_disaster.png`
+
+**Neden gerekliydi (K-19/K-21'deki transfer varsayımının sınırlılığı):**
+Model önceki oturumlarda sadece xBD ile eğitilmişti — Meksika, Endonezya,
+ABD gibi ülkelerin depremleri/afetleri. Türkiye'ye özgü yapı stoku
+(betonarme, yoğun kentsel doku) hiç görülmemişti. Kullanıcı modelin
+"yeterince öğrenmeden" Faz 4'e bağlanmasını istemedi; önce mümkün olan en
+fazla gerçek Türkiye verisiyle model güçlendirilmeye çalışıldı.
+
+**Denenen ve elenen alternatifler (bu sıra ile):**
+1. Maxar Open Data'dan doğrudan pre/post indirme — tüm 76 koleksiyon
+   tarandı, deprem bölgesinde sadece **1 kesişen pre-post çifti** bulundu
+   (zaten `data/maxar/` içinde), ve o bölge de büyük ölçüde bulutlu/kırsal
+   çıktı — etiketlenemez.
+2. Planet Labs doğrudan erişim — kurumsal/NGO başvurusu gerektiriyor,
+   bize kapalı.
+3. NASA `NIST_Turkiye_Earthquake` servisi (Planet 3m çözünürlük) —
+   servis kaldırılmış (404).
+4. NASA `Map1` servisi (Sentinel-2, 20m) — 10m/20m çözünürlükte bina
+   bazlı hasar tespiti pratik olarak yapılamaz (bina 1 pikselden küçük).
+5. **EARTHQUAKE-TURKEY (EBD koleksiyonu)** — bulundu, indirildi, kullanıldı.
+
+**İşleme:** `scripts/phase3_preprocess_ebd_turkey.py` — maskeden bağlı
+bileşen (connected component) çıkarır, her bileşenin merkezini bulur,
+64×64 patch keser (xBD ile aynı patch boyutu). CVA haritası da hesaplanır.
+
+**Sonuç — 16.351 gerçek Kahramanmaraş binası:**
+
+| Sınıf | Sayı |
+|---|---:|
+| no-damage | 15.931 |
+| minor-damage | 183 |
+| major-damage | 105 |
+| destroyed | 132 |
+| **Toplam hasarlı** | **420** |
+
+**Sınırlılık (tezde belirtilecek):** Bu alt küme xBD'ye göre küçük
+(16.351 vs 159.794) ve "no-damage skewed" (akademik kaynakta da böyle
+belirtilmiş). Hasarlı örnek sayısı azdır (420) — modelin Türkiye'ye özgü
+öğrenmesine katkı sağlar ama tek başına yeterli değildir. Etiketler
+insan tarafından üretilmemiş, yarı-otomatik + manuel kontrol sürecinden
+geçmiştir — xBD'nin tam insan etiketlemesinden güven düzeyi olarak farklı
+olabilir.
+
+**Depoya kayıt:** Veri seti `data/ebd_turkey/` altında, `.gitignore`'da
+(901 MB, repoya girmiyor). İşlenmiş patch'ler `data/ebd_turkey_patches/`
+altında (aynı şekilde gitignore'da). Kaynak scriptler ve bu karar kalıcı
+kayıt.
+
