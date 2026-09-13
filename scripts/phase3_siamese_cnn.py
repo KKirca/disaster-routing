@@ -326,8 +326,11 @@ def main():
     # Focal loss — sinif agirliklari ters frekans
     from collections import Counter
     sayac = Counter(sinif for _, sinif, _ in dataset.ornekler)
+    # K-24 devami: ham 1/frekans asiri agresifti (no-damage recall 0.012
+    # ile sonuclanmisti). Karekok yumusatma kullanildi — buyuk sinifin
+    # agirligi sifira yakin olmak yerine makul kaliyor.
     agirlik = torch.tensor(
-        [1.0 / sayac.get(i, 1) for i in range(len(SINIFLAR))],
+        [1.0 / (sayac.get(i, 1) ** 0.75) for i in range(len(SINIFLAR))],
         dtype=torch.float32).to(cihaz)
     agirlik = agirlik / agirlik.sum() * len(SINIFLAR)
     kayip_fn = FocalLoss(alpha=agirlik, gamma=2.0)

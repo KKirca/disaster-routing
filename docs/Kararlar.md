@@ -825,3 +825,57 @@ degil — kavramin dogrulanmis oldugunu gosteren bir prototip.
 
 ---
 
+
+## K-29 · Focal Loss alpha yumusatmasi - us 0.75 secildi (K-24 devami)
+**Karar:** Model 2'nin (Siamese CNN) Focal Loss alpha agirligi
+1/frekans^0.75 formuluyle hesaplanir. Aktif model
+(models/siamese_cva_en_iyi.pth) bu ayarla egitilmis modeldir.
+
+**Baslangic noktasi:** K-24'te sampler kaldirilarak kismi iyilesme
+saglanmisti (no-damage recall 0.155) ama Focal Loss'un alpha agirligi
+hala ham 1/frekans (us=1.0) kullaniyordu — planlanan ama yapilmayan
+duzeltme buydu.
+
+**Denenen dort us degeri (xBD+EBD_TR, 176.145 ornek, ~20-25 epoch,
+Turkiye-ozgu test setinde -16.351 ornek- olculdu):**
+
+| Us | no-damage | minor | major | destroyed | hasar ort. |
+|---|---:|---:|---:|---:|---:|
+| 0.50 | 0.975 | 0.044 | 0.076 | 0.727 | 0.267 |
+| 0.65 | 0.925 | 0.186 | 0.619 | 0.705 | 0.457 |
+| **0.75** | **0.773** | **0.399** | **0.571** | **0.803** | **0.569** |
+| 0.80 | 0.572 | 0.607 | 0.457 | 0.841 | 0.643 |
+| 1.00 (sampler'siz, K-24) | 0.155 | 0.710 | 0.362 | 0.841 | 0.664 |
+
+**Gozlemlenen orunt:** Us arttikca (agirlik ham 1/frekans'a yaklastikca)
+no-damage duser, hasar ortalamasi yukselir. Bu beklenen davranis —
+ancak dogrusal degil, us 0.5-0.65 arasinda beklenmedik bir sicrama
+var (0.65, 0.5'ten daha "yumusak" sonuc verdi — muhtemelen egitim
+kosusu farkliligindan, tek basina us'ten degil).
+
+**Neden 0.75 secildi (0.80 degil):**
+K-16'nin "ihtiyatli olmak guvenlidir" ilkesi hasar recall'unu bir
+miktar onceliklendirmeyi haklı kilar, ama 0.80'de no-damage 0.572'ye
+dusuyor — bu, K-24'un orijinal sorununa (her seyi hasarli gorme)
+tekrar yaklasmak demek. 0.75, hicbir sinifi asiri feda etmeyen tek
+secenekti; kullanici acikca "dengeli" secim istedi.
+
+**Neden 0.65 degil:**
+minor-damage recall 0.186'ya duser — bu sinif pratikte kayboluyor.
+
+**Model versiyon kaydi (models/ altinda, gitignore'da, hepsi
+saklaniyor):**
+- v1_bozuk_no_damage: agresif sampler (K-24 ilk hata)
+- v2_sampler_denendi: sampler kaldirildi, us=1.0 esdegeri
+- v3_us05_asiri_saglam: us 0.5, asiri yumusak
+- v4_us075: us 0.75 — SU ANKI AKTIF MODEL (siamese_cva_en_iyi.pth)
+- v5_us065: us 0.65
+- v6_us08: us 0.8
+
+**Sonraki adim:** Faz 3'un izgara-tabanli prototipi (K-28,
+phase3e_gorsel_rota.py) bu yeni modelle tekrar test edilebilir —
+daha dengeli hasar tespiti, kacinma senaryolarinin daha guvenilir
+gosterilmesini saglayabilir.
+
+---
+
