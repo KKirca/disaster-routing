@@ -717,3 +717,58 @@ Focal Loss alpha yumusatmasi (K-24'te planlanan) denenmedi.
 
 ---
 
+
+## K-27 · Faz 3 ve Faz 4, ayri iki bilesen olarak sunuluyor (entegrasyon ertelendi)
+**Karar:** Model 1+2 (Faz 3, goruntuden hasar tahmini) ve Faz 4 (rota
+planlama) birbirine baglanmadan, ayri ayri tamamlanmis bilesenler
+olarak sunulacak. Gercek zamanli entegrasyon (model tahmini -> gercek
+yol agi) bu asamada yapilmiyor.
+
+**Neden gerekli oldu:** Model 1+2'nin ciktisini (piksel koordinatinda
+bina + hasar tahmini) Faz 4'e (coğrafi koordinat + gercek yol agi
+gerektiren) baglamak icin, coğrafi referansli + kentsel dokulu +
+gercek Turkiye deprem goruntusune ihtiyac vardi.
+
+**Denenen kaynaklar (hepsi elendi):**
+1. Maxar Open Data (data/maxar/, 3 farkli konum denendi) — coğrafi
+   referansli AMA kentsel doku yok (kirsal/bulutlu/agac bahcesi cikti,
+   3 denemede de).
+2. EBD_TR (modelin egitildigi veri) — kentsel doku var AMA hic coğrafi
+   referans yok, sadece duz PNG.
+3. KATE-CD (Huggingface, CSCRS/kate-cd) — 7 Turkiye sehri (Adiyaman,
+   Gaziantep, Hatay, Kahramanmaras, Kilis, Osmaniye, Malatya) AMA
+   indirilip kontrol edildiginde coğrafi referans YOK (sadece
+   pre_image/post_image/label sutunlari, koordinat sutunu yok).
+4. ST_Turkey_2023 (Smart Transfer projesi, Google Drive) — muhtemelen
+   coğrafi referansli (building footprint tabanli), ama erisim
+   engellendi (Drive linki acilamiyor).
+
+**Netlestirilen kapsam sorusu:** Ilk degerlendirmede kaynak arayisi
+"Kahramanmaras'a ozel" cerceveyle yapiliyordu. Kullanici bunu duzeltti:
+proje Turkiye geneli icin gecerli olmali, sadece Kahramanmaras'a
+sikismamali. Bu, arama kapsamini KATE-CD/ST_Turkey_2023 gibi
+cok-sehirli kaynaklara yonlendirdi — ama koordinat sorunu bunlarda da
+cozulemedi.
+
+**Neden entegrasyonu ertelemek dogru karar:**
+Model kombinasyonunun (Model 1 + Model 2 + kopru) CALISTIGI zaten
+test edildi ve dogrulandi (bkz. K-25, K-26, phase3c_kopru.py
+ciktilari). Kullanicinin sordugu kritik soru: "koordinat sadece test
+icin mi gerekli, yoksa kombinasyonun calismasi icin mi?" Cevap:
+sadece Faz 4'e BAGLAMAK icin gerekli — kombinasyonun kendisi zaten
+calisiyor ve bu bagimsiz olarak degerli bir sonuc.
+
+**Sonuc — iki ayri, tamamlanmis bilesen:**
+
+| Bilesen | Durum | Kanit |
+|---|---|---|
+| Faz 3 (Model 1+2+kopru) | Calisiyor, test edildi | IoU 0.821, hasar recall 0.740, kopru cikti ornekleri |
+| Faz 4 (EMSR648 + rota) | Calisiyor, test edildi | +475 m sapma, NetworkXNoPath senaryosu |
+
+**Gelecek is:** Coğrafi referansli gercek Turkiye deprem goruntusu
+bulunursa (ornegin ST_Turkey_2023'e erisim saglanirsa, veya farkli
+bir Pleiades/Maxar kaynagi), iki bilesen koprulenip gercek uctan uca
+sistem kurulabilir. Bu, tezde "gelecek calisma" olarak belirtilecek.
+
+---
+
