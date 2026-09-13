@@ -6,6 +6,92 @@
 
 ---
 
+## [Faz 3 - Koordinat sorunu ve Yol A karari (K-27)] - 2026-09-13
+
+### Kritik soru: Model kombinasyonu Faz 4'e neden hemen baglanamiyor
+
+Onceki oturumda Model 1 (U-Net, IoU 0.821) ve Model 2 (Siamese CNN,
+esik 0.7 ile hasar recall 0.740) EBD_TR verisiyle basariyla test
+edilmisti. Kopru scripti (phase3c_kopru.py) ikisini birbirine
+basariyla bagliyordu.
+
+Bu oturumda amac: bu kombinasyonu Faz 4'e (rota planlama) baglamak.
+Sorun ortaya cikti: EBD_TR goruntulerinde HIC coğrafi koordinat yok
+(sadece duz PNG). Model 1+2'nin urettigi bina konumlari piksel
+bazinda ("x=382, y=130"), Faz 4 ise gercek dunya mesafesi (metre,
+lon/lat) gerektiriyor. Bu ikisi baglanamiyordu.
+
+### Kapsam duzeltmesi
+
+Ilk arayis "Kahramanmaras'a ozel" cerceveyle yapiliyordu. Kullanici
+bunu duzeltti: proje Turkiye geneli icin gecerli olmali, tek sehre
+sikismamali. Bu, arama kapsamini genisletti.
+
+### Denenen kaynaklar - 4 deneme, hepsi elendi
+
+**1. Maxar Open Data (data/maxar/) - 3. deneme**
+Onceki oturumlarda 2 kez denenmis (bulutlu, kirsal). Bu oturumda
+3. kez: en yuksek varyansli nokta bulundu (varyans analiziyle,
+512x512 pencereler halinde taranarak), Model 1'e verildi.
+Sonuc: 0 bina bulundu. Goruntu incelendiginde zeytin/bag bahcesi
+oldugu gorundu - varyans agac dokusundan geliyordu, binadan degil.
+Kentsel bolge aramasi rastgele/varyans bazli yontemle basarisiz
+oldu. Uc denemenin ucu de ayni sonuca vardi: bu Maxar karosu genel
+olarak kirsal bir bolgeyi kapsiyor.
+
+**2. EMSR648 kaynak goruntusu arama**
+EMSR648'in kaynak XML metadata'sina bakildi (source_r1_v2.xml),
+uydu/saglayici bilgisi bulunamadi (satellite/sensor/platform
+anahtar kelimeleri hic gecmiyordu). Bu yol tukendi.
+
+**3. KATE-CD (Huggingface, CSCRS/kate-cd)**
+Akademik literatur taramasinda bulundu: 7 Turkiye sehri (Adiyaman,
+Gaziantep, Hatay, Kahramanmaras, Kilis, Osmaniye, Malatya), Maxar +
+Airbus Pleiades kaynakli, 0.3-0.5m cozunurluk. datasets kutuphanesi
+kuruldu, indirildi (404 train + 44 val + 38 test = 486 ornek).
+Sutunlar kontrol edildi: sadece pre_image, post_image, label.
+Koordinat/metadata sutunu YOK. Bu kaynak da elendi.
+
+**4. ST_Turkey_2023 (Smart Transfer projesi)**
+Ayni literatur taramasinda "Smart Transfer" makalesi bulundu -
+9 Turkiye bolgesi (Gaziantep, Hatay, Kahramanmaras, Kirikhan,
+Nurdagi, Sakcagozu, Satirhuyuk, Sekeroba, TURKOGLU dahil), 288.567
+bina, Pleiades VHR (0.3m) + GlobalBuildingAtlas bina footprint'leri
+(footprint = coğrafi referansli poligon, umut vericiydi). Google
+Drive'da acik erisimli. Ancak Drive linkine bu ortamdan erisim
+saglanamadi (engellenmis).
+
+### Karar noktasi: entegrasyon mu, ayri sunma mi
+
+Kullanici kritik bir soru sordu: koordinat SADECE Faz 4'e baglamak
+icin mi gerekli, yoksa model kombinasyonunun CALISMASI icin mi?
+Cevap netlesti: model kombinasyonu (Model 1 + Model 2 + kopru) zaten
+calisiyor ve test edildi - koordinat sadece Faz 4 ile birlesim icin
+gerekliydi.
+
+Bu netlik, "Yol A" secimine goturdu: iki bileseni (Faz 3 model
+kombinasyonu + Faz 4 rota planlama) birbirine baglamadan, AYRI AMA
+TAMAMLANMIS iki sistem olarak sunmak. "Yol B" (gercek entegrasyon)
+gelecek is olarak birakildi.
+
+### Karar: K-27
+
+Faz 3 ve Faz 4 ayri bilesenler olarak belgelendi. Detaylar K-27'de
+(docs/Kararlar.md). Ozet: her iki bilesen bagimsiz olarak calisiyor
+ve test edilmis durumda; aralarindaki kopru gercek coğrafi
+referansli Turkiye deprem goruntusu bulunana kadar kurulmayacak.
+
+### Acik konular
+- ST_Turkey_2023'e erisim tekrar denenebilir (farkli agdan, gdown
+  komut satiri araciyla, veya baskasindan link istenerek).
+- Faz 3 ve Faz 4'un "ayri iki bilesen" olarak nasil sunulacagi
+  (tez formatinda) henuz yazilmadi.
+
+### Karara donusenler
+K-27
+
+---
+
 ## [Faz 3b/3c — Iki modelli mimari: bina tespiti + hasar siniflandirma] — 2026-09-12
 
 ### Mimari degisiklik: tek model yerine iki model
