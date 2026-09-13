@@ -33,3 +33,5 @@ data/ebd_turkey/
 data/ebd_turkey_patches/
 data/xbd_patches/
 data/maxar_tiles/
+data/seg_turkey_patches/
+data/splits/

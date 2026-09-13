@@ -6,6 +6,129 @@
 
 ---
 
+## [Faz 3b/3c — Iki modelli mimari: bina tespiti + hasar siniflandirma] — 2026-09-12
+
+### Mimari degisiklik: tek model yerine iki model
+
+Onceki yaklasimda Siamese CNN, bina konumlarini HAZIR etiketten
+(xBD poligonu / EBD_TR maskesi) aliyordu — yani sistem gercek bir
+goruntude "bina nerede" sorusunu hic cozmuyordu. Kullanici bunu fark
+etti ve iki asamali bir mimari onerdi:
+
+  Asama 1: PRE goruntuden binalari BUL (segmentasyon)
+  Asama 2: Bulunan her bina icin PRE/POST karsilastir, hasar sinifla
+
+Iki secenek tartisildi: tek birlesik model (ucta uca) vs iki ayri model.
+Iki ayri model secildi — gerekce: mevcut Siamese CNN korunur, hata
+ayiklama kolaylasir (hangi asama hatali belli olur), modulerlik.
+
+### Model 1: U-Net bina segmentasyonu (YENI)
+
+segmentation-models-pytorch kutuphanesi kuruldu. U-Net + ResNet18
+encoder (ImageNet on-egitimli), sadece EBD_TR verisiyle egitildi.
+
+Veri hazirligi (phase3b_segmentation_data.py): EBD_TR'nin 0-4 degerli
+hasar maskesi ikili maskeye (0=arka plan, 1=bina) cevrildi. 944 karo.
+
+Egitim (phase3b_train_segmentation.py): 20 epoch, batch 16.
+**En iyi val IoU: 0.821** (epoch 12). IoU>0.7 "iyi" kabul edilir.
+
+Epoch 16'da ani istikrarsizlik gorundu (val IoU 0.393'e dustu), sonraki
+epochlarda toparlanamadi — ama en iyi model epoch 12'de kaydedilmisti,
+etkilenmedi.
+
+Gorsel dogrulama yapildi: uc ornek karoda model binalari dogru buluyor,
+bos/kirsal alanlarda dogru sekilde bos cikti veriyor.
+
+### Format uyumu dogrulandi
+
+Model 1'in ciktisi (olasilik haritasi) -> esikleme -> bagli bilesen
+analizi -> her bina icin merkez koordinati (cx, cy). Bu, Model 2'nin
+bekledigi girdi formati. Test: karo 000042'de 33 bilesen bulundu,
+26'si gecerli (alan>20px), merkez koordinatlari cikarildi.
+
+Bilinen sinirlilik: bitisik binalar bazen tek buyuk bilesen olarak
+birlesiyor (18.413 px gibi). Kullanici bunu "onemsiz" olarak
+degerlendirdi, simdilik ele alinmadi.
+
+### Kopru scripti (phase3c_kopru.py)
+
+Iki modeli birbirine baglayan script yazildi. Akis: PRE goruntu ->
+Model 1 -> bina konumlari -> her konum icin PRE/POST/CVA patch kes ->
+Model 2 -> hasar sinifi.
+
+Ilk testte sistem calisti ama sorun ortaya cikti: 26 binanin hicbiri
+no-damage cikmadi, guven skorlari %35-55 bandindaydi. K-24'teki sorun
+gercek senaryoda tekrar gorundu.
+
+### Model A vs Model B karsilastirmasi (K-25)
+
+Kullanici sordu: EBD_TR tek basina yeterli mi, yoksa xBD gerekli mi?
+Tahmin yerine olcum yapildi.
+
+EBD_TR 807 karo, 657 egitim / 150 test olarak ayrildi (seed=42).
+Model B egitildi: sadece EBD_TR egitim bolumu (13.499 ornek), 4 sinif,
+30 epoch. Model A (xBD+EBD_TR) ile ayni test setinde karsilastirildi.
+
+Not: Model A egitiminde EBD_TR'nin tamamini gormustu, yani test
+karolarini da gordu. Bu avantaj bilerek kabul edildi — B yine de
+kazanirsa sonuc daha guclu olurdu.
+
+Sonuc:
+
+| Model | no-damage recall | hasar recall |
+|---|---:|---:|
+| A (xBD + EBD_TR) | 0.155 | 0.664 |
+| B (sadece EBD_TR) | 0.000 | 0.597 |
+
+Model B'nin egitimi boyunca recall degerleri kaotik salindi
+(destroyed: epoch 1'de 1.00, epoch 2'de 0.00, epoch 7'de 0.92) —
+test setinde sadece 47 hasarli bina oldugu icin tek bir binanin
+tahmini recall'u %7.7 oynatiyor. Bu gercek ogrenme degil, gurultu.
+
+**Karar: Model A secildi.** EBD_TR'nin katkisi Turkiye'ye ozgu yapi
+stokunu tanitmak; temel "hasar neye benzer" ogrenmesi icin xBD'nin
+hacmi (159.794 ornek) gerekli.
+
+### Hasar esigi cozumu (K-26)
+
+Kullanici sebepleri ayristirdi: (1) sinif dengesizligi araclarinin
+asiri agresifligi, (2) no-damage'in gorsel cesitliligi, (3) modelin
+kararsizligi. Sebep 2 zaten Model 1 sayesinde kismen cozulmustu
+(siniflandiriciya artik "kesin bina" garantili patch geliyor).
+
+Sebep 3 icin hizli bir mudahale denendi: modeli yeniden egitmeden,
+sadece karar mekanizmasini degistirmek. argmax yerine olasilik esigi.
+
+Bulgu carpiciydi — model aslinda ogrenmisti, biz yanlis okuyorduk:
+
+| Esik | no-damage recall | hasar recall | dogruluk |
+|---:|---:|---:|---:|
+| 0.5 (argmax) | 0.039 | 0.993 | 0.064 |
+| 0.6 | 0.287 | 0.917 | 0.303 |
+| 0.7 | 0.684 | 0.740 | 0.685 |
+| 0.8 | 0.877 | 0.550 | 0.869 |
+
+Esik 0.7 secildi: hasar recall (0.740) hala no-damage recall'undan
+(0.684) yuksek — K-16 asimetri ilkesi korunuyor — ama sistem artik
+ayrim yapabiliyor.
+
+Uc test karosunda dogrulandi, anlamli dagilim gorundu (000237'de
+13 binanin 8'i saglam, 000236'da cogu hasarli). Onceki halinde hicbir
+bina saglam cikmiyordu.
+
+### Acik konular
+- Guven skorlari hala dusuk (%37-65). Model kesin karar vermiyor.
+  Focal Loss alpha yumusatmasi (K-24'te planlanan) denenmedi.
+- Model 1'in bitisik binalari birlestirmesi cozulmedi (bilincli erteleme).
+- Model henuz Faz 4'e baglanmadi. Sirada: kopru ciktisini K-18 CSV
+  formatina cevirip (source=model_v1) rota planlamasina beslemek.
+
+### Karara donusenler
+K-25, K-26
+
+---
+
 ## [Faz 3 — Siamese CNN egitimi ve gercek Turkiye verisi] — 2026-08-29
 ### Model mimarisi ve ilk egitim
 Siamese CNN + CVA mimarisi kuruldu: pre/post goruntu paylasimli encoder dan

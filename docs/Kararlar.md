@@ -622,3 +622,98 @@ netlestirilecek — model Faz 4'e o karardan sonra baglanacak.
 
 ---
 
+
+## K-25 · Model 2 icin Model A secildi (xBD + EBD_TR birlesik egitim)
+**Karar:** Hasar siniflandirma modeli olarak Model A kullanilacak.
+Sadece EBD_TR ile egitilen Model B elendi.
+
+**Neden karsilastirma yapildi:** EBD_TR (gercek Kahramanmaras) tek basina
+yeterli mi, yoksa xBD ile birlestirmek gerekli mi sorusu acikti. Tahmin
+yerine olcum yapildi.
+
+**Deney tasarimi:**
+- EBD_TR 807 karo: 657 egitim / 150 test olarak ayrildi (seed=42,
+  data/splits/ altinda kayitli)
+- Model A: xBD (159.794) + EBD_TR (tamami, 16.351), 4 sinif
+- Model B: sadece EBD_TR egitim bolumu (13.499 ornek), 4 sinif
+- Ikisi de ayni 150 test karosunda olculdu
+
+**Bilinen sinirlilik:** Model A, egitiminde EBD_TR'nin tamamini gormustu,
+yani test karolarini da gordu. Bu ona haksiz avantaj saglar. Bilerek
+kabul edildi cunku B yine de kazanirsa sonuc daha guclu olurdu; B
+kaybetti, dolayisiyla A'nin avantaji sonucu degistirmiyor.
+
+**Sonuc:**
+
+| Model | no-damage recall | hasar recall |
+|---|---:|---:|
+| A (xBD + EBD_TR) | 0.155 | 0.664 |
+| B (sadece EBD_TR) | **0.000** | 0.597 |
+
+**Kok neden — EBD_TR tek basina neden yetersiz:**
+Egitim setinde 13.126 no-damage'a karsilik sadece 373 hasarli ornek var
+(162 minor + 92 major + 119 destroyed). Test setinde ise toplam 47
+hasarli bina (21/13/13). Bu sayilarda:
+- Tek bir binanin dogru/yanlis tahmini recall'u %7.7 oynatiyor
+- Egitim boyunca siniflar arasi recall degerleri kaotik salindi
+  (destroyed: epoch 1'de 1.00, epoch 2'de 0.00, epoch 7'de 0.92)
+- Bu istatistiksel gurultu, gercek ogrenme degil
+
+**Cikarim:** xBD'nin buyuk hacmi (159.794 ornek, ~42.000 hasarli) modelin
+"hasar neye benzer" kavramini ogrenmesi icin gerekli. EBD_TR'nin katkisi
+Turkiye'ye ozgu yapi stokunu tanitmak, tek basina temel ogrenmeyi
+saglamak degil.
+
+**Devam eden sorun:** Model A'nin no-damage recall'u (0.155) hala dusuk —
+K-24'te kayitli sorun cozulmedi, Faz 4'e baglanmadan once ele alinmali
+ya da bilincli bir sinirlilik olarak kabul edilip belgelenmeli.
+
+---
+
+
+## K-26 · Hasar karar esigi 0.7 (argmax yerine olasilik esigi)
+**Karar:** Model 2'nin ciktisi argmax ile degil, hasarli siniflarin
+(minor+major+destroyed) toplam olasiligi 0.7 esigiyle yorumlanir.
+Esik altinda kalan binalar no-damage sayilir.
+
+**Sorun:** Varsayilan argmax yaklasiminda model, olasilik %42 bile olsa
+en yuksek siniifi seciyordu. Sonuc: Turkiye verisinde no-damage recall
+0.039 — model pratikte her binayi hasarli goruyordu. Faz 4'e baglanirsa
+tum sehir "kapali yol" cikacakti.
+
+**Bulgu:** Model aslinda ogrenmisti, sorun okuma bicimindeydi.
+Farkli esiklerde olculen sonuclar (16.351 EBD_TR ornegi uzerinde):
+
+| Esik | no-damage recall | hasar recall | dogruluk |
+|---:|---:|---:|---:|
+| 0.5 (argmax esdegeri) | 0.039 | 0.993 | 0.064 |
+| 0.6 | 0.287 | 0.917 | 0.303 |
+| **0.7** | **0.684** | **0.740** | **0.685** |
+| 0.8 | 0.877 | 0.550 | 0.869 |
+
+**Neden 0.7:**
+- 0.5/0.6: model hala asiri karamsar, sistem islevsiz kalir
+- 0.8: hasar recall 0.550'ye duser — K-16'nin asimetri ilkesine ters
+  (hasarli yolu acik sanmak, saglam yolu kapali sanmaktan tehlikeli)
+- 0.7: hasar recall (0.740) hala no-damage recall'undan (0.684) yuksek,
+  yani ihtiyat korunuyor; ayni zamanda sistem ayrim yapabiliyor
+
+**Dogrulama:** Uc test karosunda calistirildi, anlamli dagilim gorundu:
+
+| Karo | no-damage | minor | major | destroyed |
+|---|---:|---:|---:|---:|
+| 000236 | 1 | 2 | 4 | 1 |
+| 000237 | 8 | 0 | 5 | 0 |
+| 000248 | 2 | 4 | 0 | 0 |
+
+Onceki halinde bu karolarda hicbir bina no-damage cikmiyordu.
+
+**Kalan sinirlilik:** Guven skorlari hala dusuk (%37-65 bandi). Model
+kesin karar vermiyor, egilim gosteriyor. Esik bu egilimi kullanilabilir
+hale getiriyor ama modelin kendi belirsizligini ortadan kaldirmiyor.
+Focal Loss alpha yumusatmasi (K-24'te planlanan) denenmedi.
+
+**Uygulama:** scripts/phase3c_kopru.py, HASAR_ESIGI sabiti.
+
+---
+
