@@ -772,3 +772,56 @@ sistem kurulabilir. Bu, tezde "gelecek calisma" olarak belirtilecek.
 
 ---
 
+
+## K-28 · Koordinatsiz gosterim: izgara tabanli rota (phase3e_gorsel_rota.py)
+**Karar:** K-27'nin ertelediği entegrasyonu, gercek coğrafi koordinat
+olmadan, goruntu ici basit izgara yol agiyla gosterildi. Bu, "sistem
+mantiginin calistigini" koordinatsiz kanitlayan bir prototip.
+
+**Nasil calisiyor:**
+1. EBD_TR karosunun uzerine 32px araliklarla basit bir izgara graf kurulur
+   (gercek sokak degil, piksel bazli kafes).
+2. Model 1 (U-Net) binalari bulur, Model 2 (Siamese CNN) hasar tahmin eder.
+3. Hasarli bulunan (esik>0.7) her binanin en yakin izgara dugumune bagli
+   kenarlarin agirligi artirilir (agirlik = adim * (1 + 5*hasar_olasiligi)).
+4. A* (Oklid heuristic ile) iki nokta arasinda rota bulur.
+
+**Test 1 — basarili (karo 000237):**
+Hasarli kume (5 bina, satir 7-14/sutun 3-13) manuel tespit edildi, bas/hedef
+bu kumenin iki yanina konuldu (bas=(3,8), hedef=(14,8)). Sonuc: rota
+hasarsiz izgarada 12 dugum/maliyet 352 iken, hasar dikkate alininca 14
+dugum/maliyet 416 (+64, sapti). Gorsel dogrulama: mavi rota kirmizi
+(hasarli) noktanin etrafindan acikca dolaniyor.
+
+**Test 2 — sinirlilik ortaya cikti (karo 000236):**
+Bu karoda 8 binanin 7'si hasarli cikti (K-24 sorununun etkisi olabilir —
+gercek hasar orani bu kadar yuksek olmayabilir). Iki farkli bas/hedef
+denemesi ((0,15)->(15,0) ve (7,0)->(15,5)) ikisinde de +0 sonuc verdi —
+secilen rotalar hasarli kenarlara hic degmedi. Bu, DOGRU DAVRANIS olabilir
+(gereksiz sapma yapmamak) ama "kacinma" senaryosunu KANITLAMADI, cunku
+test noktalari hasarli kenarin tam uzerinden gececek sekilde
+konumlandirilamadi (zaman kisitiyla 3. deneme yarim kaldi).
+
+**Dogru okuma — ne kanitlandi, ne kanitlanmadi:**
+- KANITLANDI: Model 1 + Model 2 + basit yol agi + A* zinciri uctan uca
+  calisiyor, hasarli bina tespit edildiginde rota gercekten degisebiliyor
+  (Test 1).
+- KANITLANMADI: Bu davranisin HER senaryoda tutarli oldugu. Tek basarili
+  ornek var; ikinci karoda kacinma senaryosu test edilemedi (test
+  tasarimi sorunu, sistem sorunu degil).
+
+**Bilinen sinirliliklar:**
+- Izgara gercek sokak agi degil, piksel bazli kafes — fiziksel gecerliligi
+  yok (bina uzerinden de "yol" gecebilir, izgara bundan habersiz).
+- Bas/hedef manuel secildi, hasarli bolgeyi otomatik bulup konumlandirma
+  yapilmadi (Faz 4'teki SAPMA senaryosuyla ayni sinirlama).
+- Model 2'nin K-24'teki no-damage sorunu hala cozulmedi; karo 000236'da
+  8 binanin 7'sinin hasarli cikmasi bu sorunun bir yansimasi olabilir.
+- Koordinatsiz oldugu icin gercek metre/mesafe hesaplamasi yapilamiyor,
+  K-19'daki damage_pressure formulu (alan, darlik faktorleri) burada yok.
+
+**Konum:** scripts/phase3e_gorsel_rota.py. Faz 4'e resmi entegrasyon
+degil — kavramin dogrulanmis oldugunu gosteren bir prototip.
+
+---
+
