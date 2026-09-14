@@ -958,3 +958,24 @@ dogru calismasi ile bu formulun pratikte rota secimini etkiledigini
 gostermek IKI AYRI SEYDIR - ikincisi hala kanitlanmadi, gercek bir karo
 gerekiyor (hasarli kenarin geometrik olarak zorunlu guzergahta oldugu bir
 ornek).
+
+## K-36 — Hasar maliyetinin pratik etkisi kanitlandi (K-34 duzeltmesi)
+K-34'teki "hasar maliyeti hicbir test karosunda gozlemlenemedi" ifadesi
+eksik veriye dayaniyordu (sadece 3 karo test edilmisti). 40 karoluk otomatik
+tarama (ilk 40 npy dosyasi) ile 2 karoda fark bulundu: 000161 (fark=64) ve
+000341 (fark=115).
+
+Ikisi ayri incelendi, sonuclari farkli:
+- 000341: bas dugum (12,0) grid kosesinde, tek cikis kenari var (alternatif
+  yok). Hasarli kenar (12,0)-(12,1), hasar_puan=0.718. Rota HER IKI grafikte
+  de ayni (AYNI MI: True) - hasar maliyeti sadece raporlanan maliyeti
+  artirdi, rotayi degistirmedi. Bu, zorunlu gecis senaryosu; K-35'i
+  (formul dogrulugu) destekliyor ama kacinma davranisini kanitlamiyor.
+- 000161: alternatif mevcut. Referans yol duz gidiyor
+  ((0,0)-(0,1)-(0,2)-(0,3)-(0,4)); hasar dikkate alinan yol BILINCLI OLARAK
+  DOLANIYOR ((0,0)-(0,1)-(1,1)-(1,2)-(1,3)-(0,3)-(0,4)), hasarli binaya
+  bagli (0,2) kenarindan kaciniyor. AYNI MI: False.
+
+SONUC: Hasar maliyeti mantigi, alternatif mevcut oldugu durumda gercekten
+rota secimini degistiriyor (000161 ile kanitlandi). K-34'teki "hicbir
+karoda gozlemlenemedi" ifadesi bu bulguyla GECERSIZ - duzeltiliyor.
