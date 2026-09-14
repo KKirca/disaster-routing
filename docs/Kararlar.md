@@ -941,3 +941,20 @@ bu oturumda yapilmadi.
 DENENIP VAZGECILEN: Bounding-box + uzun eksen (K-30), sadece derece kontrolu
 (K-33 ilk versiyon). Ikisi de gercek veri/bilesen bilgisini gormedigi icin
 terk edildi.
+
+## K-35 — Hasar maliyeti formulu dogrulandi (kod duzeyinde), pratik etki ayri soru
+K-34'teki "hasar maliyeti hicbir test karosunda gozlemlenemedi" bulgusu
+uzerine, formulun kendisinin dogru calisip calismadigi ayri sekilde test
+edildi. Sentetik 3x3 izgarada (izgara_kur(96,96)), tek yol birakilip
+uzerindeki bir kenara p in {0.0, 0.3, 0.7, 0.99} degerleri verildi.
+A*'nin urettigi maliyet, agirlik=32*(1+5p) formulunden hesaplanan beklenen
+degerle 4 durumda da tam (fark=0.0000) eslesti.
+
+SONUC: Formul matematiksel olarak dogru - bug yok. Ancak bu, K-34'teki
+bulguyu degistirmiyor: gercek karolarda (000237, 000236, 000317) hasar
+maliyetinin rotayi degistirdigi hicbir ornek gozlenmedi, cunku bina engeli
++ geometrik en kisa yol zaten hasarli kenarlardan kaciniyordu. Formulun
+dogru calismasi ile bu formulun pratikte rota secimini etkiledigini
+gostermek IKI AYRI SEYDIR - ikincisi hala kanitlanmadi, gercek bir karo
+gerekiyor (hasarli kenarin geometrik olarak zorunlu guzergahta oldugu bir
+ornek).
