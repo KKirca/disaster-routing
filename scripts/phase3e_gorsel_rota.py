@@ -63,15 +63,24 @@ def izgara_kur(H, W, adim=IZGARA_ADIM):
     return G, satir, sutun
 
 
-def binalari_bul_ve_isaretle(G, pre, post, cva, seg_model, cls_model, cihaz, adim=IZGARA_ADIM):
-    """Model 1 ile binalari bulur, Model 2 ile hasar tahmin eder, en yakin
-    izgara kenarina hasar puani ekler (K-19 mantiginin basitlestirilmisi:
-    hasarli bina neresi ise oradaki yol kenari pahalanir)."""
+def bina_maskesi_hesapla(pre, seg_model, cihaz):
+    """Model 1'i calistirir, ikili bina maskesini dondurur (True = bina).
+    Hem hasar siniflandirmasi hem de kenar-yasaklama tarafindan kullanilir
+    - tek gecis, tek kaynak; iki yerde ayri segmentasyon calistirmak
+    tutarsizlik riski tasir."""
     with torch.no_grad():
         pre_t = torch.from_numpy(pre.transpose(2,0,1)).float().unsqueeze(0).to(cihaz)
         seg_tahmin = torch.sigmoid(seg_model(pre_t)).cpu().numpy()[0,0]
+    return seg_tahmin > 0.5
 
-    ikili = seg_tahmin > 0.5
+
+def binalari_bul_ve_isaretle(G, pre, post, cva, seg_model, cls_model, cihaz, adim=IZGARA_ADIM, ikili=None):
+    """Model 1 ile binalari bulur, Model 2 ile hasar tahmin eder, en yakin
+    izgara kenarina hasar puani ekler (K-19 mantiginin basitlestirilmisi:
+    hasarli bina neresi ise oradaki yol kenari pahalanir)."""
+    if ikili is None:
+        ikili = bina_maskesi_hesapla(pre, seg_model, cihaz)
+
     etiketli, n = ndimage.label(ikili)
     print(f"[model 1] {n} bina bulundu")
 
@@ -116,6 +125,35 @@ def binalari_bul_ve_isaretle(G, pre, post, cva, seg_model, cls_model, cihaz, adi
     print(f"[model 2] {len(binalar)} bina siniflandirildi, {hasarli_sayisi} hasarli")
     return binalar
 
+def bina_ustu_kenarlari_kaldir(G, ikili):
+    """Grid kenarlarindan bina ustunden gecenleri siler (hard constraint).
+    Kenar boyunca birden fazla nokta orneklenir; herhangi biri bina
+    pikseline denk gelirse kenar silinir - supheli durumda kisitlama
+    yonunde hata yapilir (K-16 ile ayni ilke: emin degilken kapat, ac ma)."""
+    H, W = ikili.shape
+    silinecek = []
+    for (u, v) in G.edges():
+        x0, y0 = G.nodes[u]["x"], G.nodes[u]["y"]
+        x1, y1 = G.nodes[v]["x"], G.nodes[v]["y"]
+        n_ornek = 8
+        bina_uzerinde = False
+        for t in range(n_ornek + 1):
+            oran = t / n_ornek
+            x = int(round(x0 + (x1 - x0) * oran))
+            y = int(round(y0 + (y1 - y0) * oran))
+            x = min(max(x, 0), W - 1)
+            y = min(max(y, 0), H - 1)
+            if ikili[y, x]:
+                bina_uzerinde = True
+                break
+        if bina_uzerinde:
+            silinecek.append((u, v))
+
+    G.remove_edges_from(silinecek)
+    print(f"[bina engeli] {len(silinecek)} kenar bina ustunden gectigi icin silindi")
+    return G
+
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -146,12 +184,12 @@ def main():
     G, satir, sutun = izgara_kur(H, W)
     print(f"[izgara] {satir}x{sutun} dugum, adim={IZGARA_ADIM}px")
 
-    binalar = binalari_bul_ve_isaretle(G, pre, post, cva, seg_model, cls_model, cihaz)
+    ikili = bina_maskesi_hesapla(pre, seg_model, cihaz)
+    G = bina_ustu_kenarlari_kaldir(G, ikili)
 
-    # Hasarli kume merkezi (7,3)-(14,8) civarinda; bas/hedef bu kumenin
-    # iki yanina konur ki A* zorunlu olarak yakinindan gecsin veya dolansin.
-    bas = (7, 0)
-    hedef = (15, 5)
+    binalar = binalari_bul_ve_isaretle(G, pre, post, cva, seg_model, cls_model, cihaz, ikili=ikili)
+
+    bas, hedef = hasarli_kume_bas_hedef(binalar, satir, sutun, G)
 
     try:
         yol_temiz = nx.astar_path(G, bas, hedef, heuristic=heuristic, weight="agirlik")
@@ -159,8 +197,8 @@ def main():
     except nx.NetworkXNoPath:
         yol_temiz, maliyet_temiz = None, None
 
-    # Referans: hasarsiz izgara (agirlik = duz adim)
-    G_ref = izgara_kur(H, W)[0]
+    # Referans: hasarsiz izgara (agirlik = duz adim), ayni bina engeliyle
+    G_ref = bina_ustu_kenarlari_kaldir(izgara_kur(H, W)[0], ikili)
     yol_ref = nx.astar_path(G_ref, bas, hedef, heuristic=heuristic, weight="agirlik")
     maliyet_ref = nx.astar_path_length(G_ref, bas, hedef, heuristic=heuristic, weight="agirlik")
 
@@ -199,6 +237,97 @@ def main():
     fig.savefig(cikti, dpi=110, bbox_inches="tight")
     plt.close(fig)
     print(f"\n[kaydedildi] {cikti}")
+
+
+def hasarli_kume_bas_hedef(binalar, satir, sutun, G, adim=IZGARA_ADIM):
+    """
+    Hasarli binalarin bounding box'ini bulur, kumenin uzun eksenine gore
+    karsit iki ucuna (pay ile disarida) izgara dugumu atar.
+
+    Varsayim: hasarli binalar tek, yaklasik disbukey bir kume olusturur.
+    Kume dagitik/coklu ise (iki ayri bolge) bu yontem yaniltici sonuc verir -
+    cikti gorseli incelenmeden guvenilmemeli.
+
+    Bulunan (i,j) bina ustune veya grafikten silinmis (izole) bir duguma
+    denk gelebilir - bu durumda G uzerinde en yakin gecerli (derece>0)
+    duguma kaydirilir; asla geometrik hesaba kor korune guvenilmez.
+
+    Donus: (bas, hedef) -> ikisi de (i, j) izgara dugumu.
+    """
+    hasarlilar = [(cx, cy) for cx, cy, _, hasarli in binalar if hasarli]
+    if not hasarlilar:
+        raise ValueError(
+            "Hasarli bina bulunamadi; otomatik nokta secimi icin "
+            "en az bir hasarli bina gerekli."
+        )
+
+    pay = adim * 2
+
+    if len(hasarlilar) == 1:
+        cx, cy = hasarlilar[0]
+        bas_x, bas_y = cx - pay, cy
+        hedef_x, hedef_y = cx + pay, cy
+        aciklama = f"tek bina ({cx:.0f},{cy:.0f}) etrafinda"
+    else:
+        en_uzak_cift, en_mesafe_kare = None, -1
+        for i in range(len(hasarlilar)):
+            for j in range(i + 1, len(hasarlilar)):
+                x1, y1 = hasarlilar[i]
+                x2, y2 = hasarlilar[j]
+                d = (x1 - x2) ** 2 + (y1 - y2) ** 2
+                if d > en_mesafe_kare:
+                    en_mesafe_kare, en_uzak_cift = d, (hasarlilar[i], hasarlilar[j])
+        (x1, y1), (x2, y2) = en_uzak_cift
+        dx, dy = x2 - x1, y2 - y1
+        uzunluk = (dx ** 2 + dy ** 2) ** 0.5
+        oran = pay / uzunluk if uzunluk > 0 else 0
+        bas_x, bas_y = x1 - dx * oran, y1 - dy * oran
+        hedef_x, hedef_y = x2 + dx * oran, y2 + dy * oran
+        aciklama = (f"en uzak cift ({x1:.0f},{y1:.0f})-({x2:.0f},{y2:.0f}), "
+                    f"mesafe={uzunluk:.0f}px")
+
+    def piksel_to_dugum(x, y):
+        i = int(min(max(y // adim, 0), satir - 1))
+        j = int(min(max(x // adim, 0), sutun - 1))
+        return (i, j)
+
+    import networkx as nx
+    bilesenler = list(nx.connected_components(G))
+    if not bilesenler:
+        raise ValueError("Grafikte hic bagli bilesen yok.")
+    ana_govde = max(bilesenler, key=len)
+
+    def en_yakin_gecerli_dugum(dugum):
+        if dugum in ana_govde:
+            return dugum
+        i0, j0 = dugum
+        en_yakin, en_kisa = None, None
+        for n in ana_govde:
+            i1, j1 = n
+            d = (i1 - i0) ** 2 + (j1 - j0) ** 2
+            if en_kisa is None or d < en_kisa:
+                en_kisa, en_yakin = d, n
+        return en_yakin
+
+    bas_ham = piksel_to_dugum(bas_x, bas_y)
+    hedef_ham = piksel_to_dugum(hedef_x, hedef_y)
+    bas = en_yakin_gecerli_dugum(bas_ham)
+    hedef = en_yakin_gecerli_dugum(hedef_ham)
+
+    if bas != bas_ham:
+        print(f"[nokta duzeltme] bas {bas_ham} gecersizdi, en yakina kaydirildi: {bas}")
+    if hedef != hedef_ham:
+        print(f"[nokta duzeltme] hedef {hedef_ham} gecersizdi, en yakina kaydirildi: {hedef}")
+
+    if bas == hedef:
+        raise ValueError(
+            f"Bas ve hedef ayni duguma dusuyor: {bas}. "
+            "Izgara adimini veya pay degerini gozden gecir."
+        )
+
+    print(f"[otomatik nokta] bas={bas} hedef={hedef} ({aciklama})")
+
+    return bas, hedef
 
 
 if __name__ == "__main__":

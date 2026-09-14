@@ -1144,3 +1144,11 @@ Faz 1 ve 2 boyunca değişmedi.
 
 ### Karara dönüşenler
 K-01, K-02, K-11, K-12
+
+## Faz 3e - B adimi: otomatik bas/hedef + bina engeli (K-30..K-34)
+- bina_maskesi_hesapla() eklendi (refactor, binalari_bul_ve_isaretle icin ortak kaynak)
+- bina_ustu_kenarlari_kaldir() eklendi (hard constraint, bina ustu kenar silme)
+- hasarli_kume_bas_hedef() ana govde (en buyuk bagli bilesen) kaydirmasi + en-uzak-cift mantigina gecirildi
+- main() ve G_ref bina engelini kullaniyor
+- Test: 000237, 000236, 000317 - regresyon yok, NetworkXNoPath cozuldu
+- Bilinen sinirlama: hasar-maliyet etkisi hicbir test karosunda gozlemlenemedi

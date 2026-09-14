@@ -879,3 +879,65 @@ gosterilmesini saglayabilir.
 
 ---
 
+
+## K-30 — Otomatik bas/hedef secimi: ilk yaklasim (bounding box merkezi) yetersiz cikti
+scripts/phase3e_gorsel_rota.py'ye hasarli bina kumesinden otomatik bas/hedef
+secen fonksiyon eklendi. Ilk versiyon: bounding box'in uzun eksenine gore
+karsit uclara nokta koyma. Karo 000317'de (5 hasarli bina, dagitik) bu
+yontem basarisiz oldu - bbox merkezi hicbir gercek veri noktasini temsil
+etmiyordu, secilen nokta bos/anlamsiz bir koordinata denk geldi.
+KARAR: Bounding-box-merkez yontemi terk edildi.
+
+## K-31 — Kritik mimari eksiklik: izgara bina/sokak ayrimi yapmiyor
+Gorsel inceleme (000317 ciktisi) rotanin binalarin uzerinden gectigini
+gosterdi. Kok neden: izgara_kur() goruntu yuzeyine kosulsuz dugum
+koyuyor, Model 1'in segmentasyon maskesi hic kullanilmiyordu - hasarli
+binalar icin maliyet artiriliyordu ama hasarsiz bina/sokak ayrimi
+hic yapilmiyordu. Faz 1'deki edge_cost=math.inf hatasiyla ayni sinif
+hata: fiziksel imkansizlik (bina uzerinden gecis) sayisal maliyetle
+degil, yapisal yasakla temsil edilmeli.
+KARAR: Bina ustu kenarlar hard constraint olarak grafikten silinecek
+(agirliklandirma degil).
+
+## K-32 — bina_maskesi_hesapla + bina_ustu_kenarlari_kaldir eklendi
+seg_tahmin/ikili hesaplamasi binalari_bul_ve_isaretle()'den ayri, paylasilan
+bir fonksiyona (bina_maskesi_hesapla) cikarildi - tek gecis, tek kaynak.
+bina_ustu_kenarlari_kaldir(): her kenar boyunca 8 nokta orneklenir, herhangi
+biri bina pikseline denk gelirse kenar G'den silinir (supheli durumda
+kisitla, K-16 ile ayni ilke). main() ve referans grafik (G_ref) bu
+kisitlamayi ayni sekilde aliyor. Regresyon: 000237 sonucu degismedi.
+000317: 290 kenar silindi, rota hala bulunabildi.
+
+## K-33 — Otomatik nokta secimi: gecerlilik kontrolu eksikti, iki asamada duzeltildi
+Ilk versiyon (bbox merkezi) bina ustu kenar silme sonrasi izole (derece=0)
+duguma denk gelebiliyordu -> NetworkXNoPath. Parca A: en_yakin_gecerli_dugum
+eklendi ama ilk versiyonu sadece "derece>0" kontrolu yapiyordu - bu YETERSIZ
+cikti, cunku derece>0 olan dugum bas'tan tamamen ayri bir bagli bilesende
+olabilir (000317'de 103 bilesene bolunmus grafikte dogrulandi). Duzeltme:
+en_yakin_gecerli_dugum artik en buyuk bagli bilesene (ana_govde) kaydiriyor,
+sadece derece kontrolu degil. Bu, bas ve hedef'in ayni bilesende olacagini
+garanti eder.
+
+## K-34 — Bounding-box-merkez yerine en-uzak-cift (farthest pair) mantigina gecildi
+K-30'daki sorunu kokten cozmek icin: tek hasarli bina durumunda nokta o
+binanin etrafina konur (degismedi); coklu hasarli bina durumunda tum
+ikili kombinasyonlar taranip en uzak ikisi bulunur, bas/hedef bu ikisinin
+dogrultusunda disari uzatilarak konur. Boylece nokta her zaman gercek veri
+noktasindan turetilir, bos bir geometrik merkezden degil.
+
+Test sonuclari (K-29 modeliyle, uc karo):
+- 000237 (1 hasarli bina): fark +0 -> hasarli kenar rotada yok (dogrulandi)
+- 000236 (1 hasarli bina): fark +0 -> hasarli kenar rotada yok
+- 000317 (5 hasarli bina, en uzak cift mesafe=324px): fark +0, rota
+  hasarli kenarlarin hicbirinden gecmiyor (dogrulandi, hasar_puan taramasi)
+
+BILINEN SINIRLAMA: Hasar-agirlikli maliyet katmaninin gozlemlenebilir
+etkisi hicbir test karosunda kanitlanamadi - ucunde de bina engeli +
+geometrik en kisa yol zaten hasarli kenarlardan kaciniyor. Hasar maliyeti
+mantiginin gercekten calistigini gostermek icin, hasarli kenarin geometrik
+olarak zorunlu guzergahta oldugu bir karo bulunup ayrica test edilmeli -
+bu oturumda yapilmadi.
+
+DENENIP VAZGECILEN: Bounding-box + uzun eksen (K-30), sadece derece kontrolu
+(K-33 ilk versiyon). Ikisi de gercek veri/bilesen bilgisini gormedigi icin
+terk edildi.
