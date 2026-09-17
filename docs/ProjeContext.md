@@ -16,8 +16,31 @@ uygulanabilir** bir sistem.
 
 ## Mimari — üç katman
 
-1. **Hasar tespiti** — Siamese CNN (xBD), Prithvi-tipi foundation backbone,
-   SAM etiketleme yardımcısı olarak, CVA/NDBI klasik baseline
+1. **Hasar tespiti** — iki model, Faz 3'te insa edildi ve test edildi:
+   - **Model 1** (U-Net, ResNet18 encoder): PRE goruntuden bina segmentasyonu.
+     Sadece EBD_TR (EARTHQUAKE-TURKEY) verisiyle egitildi, val IoU 0.821.
+   - **Model 2** (Siamese CNN + CVA): PRE/POST karsilastirip 4 sinif hasar
+     tahmini (no-damage/minor/major/destroyed). xBD (159.794) + EBD_TR
+     (16.351) ile egitildi. Focal Loss alpha agirligi 1/frekans^0.75 ile
+     dengelendi (K-29) — no-damage recall 0.773, hasar recall ort. 0.569.
+     Karar esigi argmax degil, hasarli-siniflar-toplami>0.7 (K-26).
+   - Ikisi `scripts/phase3c_kopru.py` ile baglaniyor: Model 1 bina bulur,
+     Model 2 her bina icin hasar tahmin eder.
+   - **Koordinat sinirlamasi (K-27):** EBD_TR goruntulerinde coğrafi
+     referans yok. Bu yuzden Model 1+2'nin ciktisi asagidaki Kopru
+     Katmani'na (gercek koordinat + gercek yol agi bekleyen) DOGRUDAN
+     baglanamiyor — 4 alternatif kaynak denendi, hepsi elendi.
+   - **Koordinatsiz prototip (K-28..K-37):** `scripts/phase3e_gorsel_rota.py`
+     goruntu ici basit bir piksel izgarasi kurup Model 1+2'nin ciktisini
+     bu izgaraya baglar. Bina-ustu kenarlar hard-constraint olarak
+     grafikten silinir (Faz 1'in `math.inf` hatasindan ders — fiziksel
+     imkansizlik sayisal ceza degil yapisal yasakla temsil edilir).
+     40 karo taramasinda: %45 hasarsiz, %50 hasar var ama rota etkilenmedi
+     (bas/hedef hasarli bolgeye denk gelmedi), %5 gercek kacinma gozlendi
+     (`scripts/phase3f_toplu_tarama.py`). Bu, Kopru Katmani'nin YERİNE
+     GECMEZ — coğrafi koordinat olmadan calisan, ayri bir gosterim.
+   - SAM/foundation backbone/klasik CVA-NDBI baseline planlari
+     UYGULANMADI — Siamese CNN + CVA tek yaklasim olarak kaldi.
 2. **Köprü katmanı** *(çekirdek özgünlük)* — bina hasarı → yol geçilebilirlik maliyeti
    **Faz 4'te inşa edildi ve doğrulandı** (K-15…K-20, `scripts/phase4_*.py`).
    - Girdi: sabit şemalı CSV — `uid, lon, lat, footprint_wkt, area_m2,
