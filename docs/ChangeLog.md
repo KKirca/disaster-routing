@@ -6,6 +6,52 @@
 
 ---
 
+## [Faz 3e/3f - Izgara cozunurlugu karari (K-37) ve toplu tarama dogrulamasi] - 2026-09-17
+
+### Izgara parcalanma sorunu (K-37)
+
+Karo 000317'de (71 bina, yogun doku) rota izgarasi asiri parcalaniyordu:
+256 dugumden 96'si (%37.5) tamamen izole. IZGARA_ADIM 32'den 16'ya
+dusuruldu, test edildi: izolasyon ORANI degismedi (%34.1, pratikte
+ayni) ama en buyuk bagli bilesenin orani iyilesti (%54 -> %62).
+
+Kok neden: izolasyon orani goruntudeki bina yogunluguna bagli (bu
+karoda ~%39 bina alani), izgara siklastirmak sorunu orantili
+cozmuyor. Bu fiziksel gercegi yansitiyor — yogun mahallede sokak
+agi da seyrelir.
+
+Karar: IZGARA_ADIM=16'da tutuldu (32'ye donmenin tek getirisi hiz
+olurdu, bu bir prototip icin onemsiz; kalite onceliklendirildi).
+Regresyon testi 3 karoda (000237, 000236, 000317) sorunsuz gecti.
+
+### Toplu tarama scripti yazildi, K-35/K-36 tekrar dogrulandi
+
+Onceki oturumda 40 karoluk tarama tek seferlik bir komutla yapilmis,
+kalici script olarak birakilmamisti. Bu oturumda scripts/
+phase3f_toplu_tarama.py yazildi — tekrarlanabilir, kalici.
+
+Yeni model (K-29, us 0.75) ile 40 karo yeniden tarandi:
+- 18 karo: hasar yok
+- 20 karo: hasar var, rota etkilenmedi (bas/hedef hasarli bolgeye
+  denk gelmedi — beklenen, hata degil)
+- 2 karo: gercek kacinma (000341 fark=+57.5, 000538 fark=+61.7)
+- 0 hata, 0 NetworkXNoPath (K-33'teki nokta duzeltme mekanizmasi
+  sorunsuz calisti)
+
+Bu, K-35/K-36'daki "kacinma orani ~%5" bulgusunu DOGRULADI — model
+degismesine ragmen genel oruntu ayni kaldi. Yeni bilgi degil,
+tekrarlanabilirlik kanitlandi (bu bir karar degil, analiz).
+
+### Acik
+- Otomatik nokta secimi (K-34) hasarli bolgenin uzerinden gecmeyi
+  garanti etmiyor, sadece "en uzak hasarli cift" mantigiyla seciyor —
+  bu yuzden %50 karo "etkisiz" cikiyor. Daha isabetli bir nokta secimi
+  (hasarli kumeyi gercekten kesen bir hat) ileride denenebilir.
+- K-27 koordinat kopuklugu hala gecerli.
+
+
+---
+
 ## [Faz 3 - Koordinat sorunu ve Yol A karari (K-27)] - 2026-09-13
 
 ### Kritik soru: Model kombinasyonu Faz 4'e neden hemen baglanamiyor
