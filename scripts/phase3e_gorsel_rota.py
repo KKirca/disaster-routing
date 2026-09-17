@@ -27,7 +27,7 @@ IMG_DIR = "data/ebd_turkey/EARTHQUAKE-TURKEY/images"
 PATCH = 64
 MIN_ALAN = 20
 HASAR_ESIGI = 0.7
-IZGARA_ADIM = 32   # her 32 pikselde bir dugum
+IZGARA_ADIM = 16   # her 16 pikselde bir dugum (K-37: 32den daha az parcalanma sagladi)
 
 
 def kirp(img, cx, cy, patch=PATCH):

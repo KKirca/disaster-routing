@@ -979,3 +979,36 @@ Ikisi ayri incelendi, sonuclari farkli:
 SONUC: Hasar maliyeti mantigi, alternatif mevcut oldugu durumda gercekten
 rota secimini degistiriyor (000161 ile kanitlandi). K-34'teki "hicbir
 karoda gozlemlenemedi" ifadesi bu bulguyla GECERSIZ - duzeltiliyor.
+
+## K-37 — Izgara parcalanmasi: cozunurluk degil, bina yogunlugu sorunu
+**Durum:** Bilinen sinirlilik olarak kabul edildi, cozulmedi.
+
+**Sorun:** Yogun kentsel dokuda (karo 000317, 71 bina) rota izgarasi
+asiri parcalaniyor. IZGARA_ADIM=32 ile 256 dugumden 96'si (%37.5)
+izole (hicbir kenari yok) cikiyor, en buyuk bagli bilesen sadece
+138 dugum (%54).
+
+**Denendi:** IZGARA_ADIM 32'den 16'ya dusuruldu (1024 dugum). Sonuc:
+izole dugum ORANI degismedi (%34.1 — pratikte ayni), ama en buyuk
+bilesenin orani iyilesti (%54 -> %62).
+
+**Kok neden:** Izolasyon orani izgara siklaigina degil, goruntudeki
+bina yogunluguna bagli (bu karoda bina alani ~%39). Izgarayi
+siklastirmak sorunu ORANTILI cozmuyor — hesaplama maliyeti artiyor,
+temel sinirlama kalmaya devam ediyor. Bu, fiziksel gercegi yansitiyor:
+gercek yogun bir mahallede de sokak agi seyrelir.
+
+**Karar:** IZGARA_ADIM=16'da birakildi (32'ye donmenin tek getirisi
+hiz olurdu; bu bir prototip, hiz kritik degil, en buyuk bilesenin
+buyuklugu — kalite — daha onemli). Izolasyon, otomatik nokta
+secimindeki "gecersiz nokta ise en yakina kaydir" mekanizmasiyla
+(K-33) idare ediliyor — tam cozulmuyor ama pratik olarak calisir
+kaliyor.
+
+**Bu neyi degistirmiyor:** Bina engeli (K-32), otomatik nokta secimi
+(K-34), hasar maliyeti (K-35/K-36) hepsi gecerliligini koruyor. Bu
+sadece cok yogun karolarda (071317 gibi) ana bilesen disinda kalan
+kucuk adacıkların rotaya dahil olamamasi anlamina geliyor.
+
+---
+
